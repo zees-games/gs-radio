@@ -6,7 +6,7 @@ One station per server. A library of operator-uploaded tracks, a playlist, a req
 
 ## Why a shared clock
 
-The station is a single object, so every listener hears the same thing and chat commands (`!song`) mean the same track for everyone. The server advances the schedule (`DotRadioStation.update`); it never waits for a client.
+The station is a single object, so every listener hears the same thing and chat commands (`!song`) mean the same track for everyone. The server advances the schedule (`GSRadioStation.update`); it never waits for a client.
 
 On the wire the position is `position`, seconds into the current track as of `server_time`, negative during the gap before a track starts. Clients anchor it to their own steady clock plus half the round trip, so they never need to agree with the server's wall clock. Between tracks there is a gap (`gap_sec`, default 2 s); the next track is already chosen, so a client can fetch it during the current one and start on time.
 
@@ -16,31 +16,31 @@ Godot has no streaming decode of a remote MP3 or OGG, and `HTTPRequest` (the onl
 
 ## Paths, not streams
 
-The server sends no audio frames. It serves files at `GET /track/<id>` (public, ETag = hash, any origin allowed so a web build can fetch) and a small JSON schedule at `GET /now`. Streams would need a codec, a mixer and a clock on the server; files need none of that. Carrying the schedule is the client's choice: poll `/now`, or feed `DotRadioClient.apply_now` from the game's own replication.
+The server sends no audio frames. It serves files at `GET /track/<id>` (public, ETag = hash, any origin allowed so a web build can fetch) and a small JSON schedule at `GET /now`. Streams would need a codec, a mixer and a clock on the server; files need none of that. Carrying the schedule is the client's choice: poll `/now`, or feed `GSRadioClient.apply_now` from the game's own replication.
 
 ## Layers
 
-1. `DotRadioCodec`, `DotRadioLibrary`, `DotRadioStation`: no transport, no nodes, testable headless with a fake clock and a fake length probe.
-2. `DotRadioApi`: a request dictionary in, a `DotResult` out. Listener ops need any actor; admin ops need the `radio` flag. Actors come from the admin token or from the `identity` hook; `permit` is the host's check. dot-core's `DotAdminIdentity` (flags `["radio"]`) is the shared gate for both hooks, the same one dot-workbench's `DotWorkbenchIdentity` derives from.
-3. `DotRadioHttp`: routes on dot-core's `DotHttpServer`. Off by default, loopback by default, token from a file only, bad tokens throttled with `DotRateLimiter`. Upload is a raw-body `PUT`: `DotHttpServer` already reads bodies up to `max_body_bytes` (1 MiB by default; the radio raises it to fit a track), and a multipart parser would be a second HTTP implementation. `Expect: 100-continue` and `Range` are not supported by `DotHttpServer`. `read_timeout_sec` is raised to `upload_timeout_sec` for slow uplinks, which also lengthens the time a stalled connection holds a slot.
+1. `GSRadioCodec`, `GSRadioLibrary`, `GSRadioStation`: no transport, no nodes, testable headless with a fake clock and a fake length probe.
+2. `GSRadioApi`: a request dictionary in, a `GSResult` out. Listener ops need any actor; admin ops need the `radio` flag. Actors come from the admin token or from the `identity` hook; `permit` is the host's check. dot-core's `GSAdminIdentity` (flags `["radio"]`) is the shared gate for both hooks, the same one dot-workbench's `GSWorkbenchIdentity` derives from.
+3. `GSRadioHttp`: routes on dot-core's `GSHttpServer`. Off by default, loopback by default, token from a file only, bad tokens throttled with `GSRateLimiter`. Upload is a raw-body `PUT`: `GSHttpServer` already reads bodies up to `max_body_bytes` (1 MiB by default; the radio raises it to fit a track), and a multipart parser would be a second HTTP implementation. `Expect: 100-continue` and `Range` are not supported by `GSHttpServer`. `read_timeout_sec` is raised to `upload_timeout_sec` for slow uplinks, which also lengthens the time a stalled connection holds a slot.
 4. `web/index.html`: drag and drop upload with progress, library, playlist, queue, now playing, skip, delete.
-5. `DotRadioClient` over a duck-typed sink: `DotRadioSinkNull` for tests, `DotRadioSinkGodot` for an `AudioStreamPlayer`. `tick()` compares the sink position with the schedule and re-seeks beyond `drift_threshold_sec`. `tune_in()` is the only way playback starts and is reached from an input event, the user gesture a browser needs to unlock audio.
-6. `DotRadioCommands`: `!radio`, `!song`, `!request`, `!rate`, with no dependency on dot-console or dot-chat.
-7. `DotRadioHud`: a code-built Control (tune button, artist - title, position bar, next line, volume, mute) bound to a client with `bind()`. Placement and theme are the game's.
-8. `DotRadioReplicator` (server) and `DotRadioClient.apply_wire` (client): push the schedule over the host's transport instead of polling `/now`. Transport-agnostic because dot-radio does not depend on dot-net: the host wraps the bytes in one reliable TO_CLIENT `DotNetMessage` with a byte-string body and sets `client.poll_schedule = false`. `examples/host/` has the reference wrapper (`RadioScheduleMessage`, `RadioNetHost`) and `radio_net_selftest` runs it between two real `DotNetManager`s. Audio still downloads over HTTP.
-9. `DotRadioTags`: title and artist from ID3v2.2-2.4, ID3v1, Vorbis and Opus comments, bounded and best effort; `DotRadioLibrary.add` uses them when the admin typed nothing (the id still comes from the typed title or file name). Album is read too (`TALB`/`TAL`, Vorbis `ALBUM`), and `DotRadioTags.cover` takes an ID3v2 `APIC`/`PIC` image if its bytes are PNG or JPEG and at most 512 KiB; the library stores it under `covers/` and serves it at `GET /cover/<id>`. OGG covers (base64 across page boundaries) and ReplayGain are not read.
+5. `GSRadioClient` over a duck-typed sink: `GSRadioSinkNull` for tests, `GSRadioSinkGodot` for an `AudioStreamPlayer`. `tick()` compares the sink position with the schedule and re-seeks beyond `drift_threshold_sec`. `tune_in()` is the only way playback starts and is reached from an input event, the user gesture a browser needs to unlock audio.
+6. `GSRadioCommands`: `!radio`, `!song`, `!request`, `!rate`, with no dependency on dot-console or dot-chat.
+7. `GSRadioHud`: a code-built Control (tune button, artist - title, position bar, next line, volume, mute) bound to a client with `bind()`. Placement and theme are the game's.
+8. `GSRadioReplicator` (server) and `GSRadioClient.apply_wire` (client): push the schedule over the host's transport instead of polling `/now`. Transport-agnostic because dot-radio does not depend on dot-net: the host wraps the bytes in one reliable TO_CLIENT `GSNetMessage` with a byte-string body and sets `client.poll_schedule = false`. `examples/host/` has the reference wrapper (`RadioScheduleMessage`, `RadioNetHost`) and `radio_net_selftest` runs it between two real `GSNetManager`s. Audio still downloads over HTTP.
+9. `GSRadioTags`: title and artist from ID3v2.2-2.4, ID3v1, Vorbis and Opus comments, bounded and best effort; `GSRadioLibrary.add` uses them when the admin typed nothing (the id still comes from the typed title or file name). Album is read too (`TALB`/`TAL`, Vorbis `ALBUM`), and `GSRadioTags.cover` takes an ID3v2 `APIC`/`PIC` image if its bytes are PNG or JPEG and at most 512 KiB; the library stores it under `covers/` and serves it at `GET /cover/<id>`. OGG covers (base64 across page boundaries) and ReplayGain are not read.
 
 ## Validation
 
-A file is accepted when its magic bytes say MP3 (`ID3` or an MPEG frame sync) or OGG (`OggS`) whatever its name; it is within `max_track_bytes`; it decodes to a non-zero length within `max_track_seconds`; the library has room; and its id (a slug of the title or file name) is free. Writes go to `user://` and call `DotWeb.sync_filesystem()`.
+A file is accepted when its magic bytes say MP3 (`ID3` or an MPEG frame sync) or OGG (`OggS`) whatever its name; it is within `max_track_bytes`; it decodes to a non-zero length within `max_track_seconds`; the library has room; and its id (a slug of the title or file name) is free. Writes go to `user://` and call `GSWeb.sync_filesystem()`.
 
 ## Workbench
 
-`DotRadioWorkbench.register(workbench, radio_http, "/radio")` mounts the radio routes on the workbench's own server and registers the admin page in its page registry (`/pages/radio`, listed for tokens with the `radio` flag). Duck-typed: dot-radio does not depend on dot-workbench. The page is the same one with a `radio-root` meta that points its relative URLs at the mount. The radio keeps its own token or identity (`DotAdminIdentity` fits the hooks); the workbench token does not open it.
+`GSRadioWorkbench.register(workbench, radio_http, "/radio")` mounts the radio routes on the workbench's own server and registers the admin page in its page registry (`/pages/radio`, listed for tokens with the `radio` flag). Duck-typed: dot-radio does not depend on dot-workbench. The page is the same one with a `radio-root` meta that points its relative URLs at the mount. The radio keeps its own token or identity (`GSAdminIdentity` fits the hooks); the workbench token does not open it.
 
 ## Not built
 
-- Player requests and ratings over HTTP; they go through the game's server-side commands into `DotRadioApi`.
+- Player requests and ratings over HTTP; they go through the game's server-side commands into `GSRadioApi`.
 - HTTP `Range`, resumable or chunked upload, `Expect: 100-continue`.
 - Crossfade and gain normalisation.
 - Persisting volume and mute (belongs in dot-settings).

@@ -1,4 +1,4 @@
-class_name DotRadioCodec
+class_name GSRadioCodec
 extends RefCounted
 
 ## What a byte buffer is (MP3 or OGG by magic bytes, never by file name), how long it plays, and how to make a stream of it.
@@ -26,21 +26,21 @@ static func mime(kind: String) -> String:
 
 
 ## Decodes [param bytes] into a stream; fails with CODE_PARSE when the data is not decodable audio.
-static func stream_from_bytes(bytes: PackedByteArray, kind: String = "") -> DotResult:
+static func stream_from_bytes(bytes: PackedByteArray, kind: String = "") -> GSResult:
 	if kind.is_empty():
 		kind = kind_of(bytes)
 	if kind == MP3:
 		var s := AudioStreamMP3.new()
 		s.data = bytes
 		if s.get_length() <= 0.0:
-			return DotResult.fail(DotError.CODE_PARSE, "not decodable MP3 audio")
-		return DotResult.success(s)
+			return GSResult.fail(GSError.CODE_PARSE, "not decodable MP3 audio")
+		return GSResult.success(s)
 	if kind == OGG:
 		var o := AudioStreamOggVorbis.load_from_buffer(bytes)
 		if o == null or o.get_length() <= 0.0:
-			return DotResult.fail(DotError.CODE_PARSE, "not decodable OGG Vorbis audio")
-		return DotResult.success(o)
-	return DotResult.fail(DotError.CODE_INVALID, "neither MP3 nor OGG")
+			return GSResult.fail(GSError.CODE_PARSE, "not decodable OGG Vorbis audio")
+		return GSResult.success(o)
+	return GSResult.fail(GSError.CODE_INVALID, "neither MP3 nor OGG")
 
 
 ## Playing time in seconds; 0 when the bytes do not decode.

@@ -1,4 +1,4 @@
-class_name DotRadioClient
+class_name GSRadioClient
 extends Node
 
 ## The listener: follows the station's schedule, downloads each track once, and plays it seeked to where the station is.
@@ -15,12 +15,12 @@ const CHANNEL := "radio"
 
 ## The station's mount, e.g. "http://host:8791" or "http://host:8790/radio"; empty means the host feeds [method apply_now] and tracks come from [member fetcher].
 var base_url := ""
-## Anything with the [DotRadioSink] methods.
-var sink: Variant = DotRadioSink.new():
+## Anything with the [GSRadioSink] methods.
+var sink: Variant = GSRadioSink.new():
 	set(v):
 		sink = v
 		_apply_volume()
-## Callable(url) -> DotResult of bytes, awaitable; replaces the built-in [DotHttp] (tests, a game's own downloader).
+## Callable(url) -> GSResult of bytes, awaitable; replaces the built-in [GSHttp] (tests, a game's own downloader).
 var fetcher: Callable = Callable()
 var cache_dir := "user://radio_cache"
 var max_cache_bytes := 128 * 1024 * 1024
@@ -53,7 +53,7 @@ var muted := false:
 		muted = v
 		_apply_volume()
 
-var _http: DotHttp
+var _http: GSHttp
 var _now: Dictionary = {}
 var _anchor_t := 0.0
 var _anchor_pos := 0.0
@@ -149,9 +149,9 @@ func apply_now(now: Dictionary, latency: float = 0.0) -> void:
 	now_updated.emit(now)
 
 
-## Takes a schedule pushed by [DotRadioReplicator] (bytes from the host's own transport, e.g. a dot-net message). A bad payload is refused and the last schedule stays. Set `poll_schedule = false` so the client stops polling `/now`; audio still downloads from `base_url`.
-func apply_wire(payload: PackedByteArray, latency: float = 0.0) -> DotResult:
-	var res := DotRadioReplicator.decode(payload)
+## Takes a schedule pushed by [GSRadioReplicator] (bytes from the host's own transport, e.g. a dot-net message). A bad payload is refused and the last schedule stays. Set `poll_schedule = false` so the client stops polling `/now`; audio still downloads from `base_url`.
+func apply_wire(payload: PackedByteArray, latency: float = 0.0) -> GSResult:
+	var res := GSRadioReplicator.decode(payload)
 	if not res.ok:
 		return res
 	apply_now(res.value, latency)
@@ -195,7 +195,7 @@ func tick() -> void:
 		var drift: float = sink.position() - pos
 		if not sink.is_playing() or absf(drift) > drift_threshold_sec:
 			resyncs += 1
-			DotLog.debug(CHANNEL, "re-seeking", {"drift": drift})
+			GSLog.debug(CHANNEL, "re-seeking", {"drift": drift})
 			sink.play(_stream, pos)
 	else:
 		if _ready_id != id and _loading.is_empty() and t >= _retry_at:
@@ -247,11 +247,11 @@ func _halt() -> void:
 	_stream = null
 
 
-func _fetch(url: String) -> DotResult:
+func _fetch(url: String) -> GSResult:
 	if fetcher.is_valid():
 		return await fetcher.call(url)
 	if _http == null:
-		_http = DotHttp.new()
+		_http = GSHttp.new()
 		add_child(_http)
 	return await _http.get_bytes(url)
 
@@ -273,7 +273,7 @@ func _poll() -> void:
 
 func _fail(message: String) -> void:
 	_retry_at = _clock() + retry_sec
-	DotLog.warn(CHANNEL, message)
+	GSLog.warn(CHANNEL, message)
 	failed.emit(message)
 
 
@@ -304,18 +304,18 @@ func _prefetch_next(pos: float) -> void:
 	_prefetching = ""
 	if not res.ok:
 		_retry_at = _clock() + retry_sec
-		DotLog.debug(CHANNEL, "prefetch failed", {"id": id, "error": res.error.message})
+		GSLog.debug(CHANNEL, "prefetch failed", {"id": id, "error": res.error.message})
 
 
 # The decoded stream for a track: from memory, else the disk cache, else downloaded, checked against the station's hash, and cached.
-func _stream_for(track: Dictionary) -> DotResult:
+func _stream_for(track: Dictionary) -> GSResult:
 	var id := str(track["id"])
 	if _streams.has(id):
-		return DotResult.success(_streams[id])
+		return GSResult.success(_streams[id])
 	var kind := str(track.get("kind", ""))
 	var path := cache_dir.path_join("%s-%s.%s" % [id, str(track.get("sha256", "")).left(12), kind])
 	var bytes := PackedByteArray()
-	var cached: DotResult = DotPaths.read_bytes(path) if FileAccess.file_exists(path) else null
+	var cached: GSResult = GSPaths.read_bytes(path) if FileAccess.file_exists(path) else null
 	if cached != null and cached.ok and (cached.value as PackedByteArray).size() == int(track.get("size", -1)):
 		bytes = cached.value
 	else:
@@ -324,10 +324,10 @@ func _stream_for(track: Dictionary) -> DotResult:
 			return got
 		bytes = got.value
 		var want := str(track.get("sha256", ""))
-		if not want.is_empty() and DotHash.sha256_bytes(bytes) != want:
-			return DotResult.fail(DotError.CODE_INTEGRITY, "the downloaded file does not match the station's hash", id)
+		if not want.is_empty() and GSHash.sha256_bytes(bytes) != want:
+			return GSResult.fail(GSError.CODE_INTEGRITY, "the downloaded file does not match the station's hash", id)
 		_store(path, bytes)
-	var decoded := DotRadioCodec.stream_from_bytes(bytes, kind)
+	var decoded := GSRadioCodec.stream_from_bytes(bytes, kind)
 	if decoded.ok:
 		_streams[id] = decoded.value
 		_trim_streams(id)
@@ -342,12 +342,12 @@ func _trim_streams(keep: String) -> void:
 
 
 func _store(path: String, bytes: PackedByteArray) -> void:
-	if DotPaths.ensure_parent_dir(path).ok:
+	if GSPaths.ensure_parent_dir(path).ok:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		if f != null:
 			f.store_buffer(bytes)
 			f.close()
-			DotWeb.sync_filesystem()
+			GSWeb.sync_filesystem()
 	_evict(path)
 
 

@@ -8,7 +8,7 @@ const COVER_CHECKS := 21
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_line("dot-radio cover self-test")
 	_mp3 = FileAccess.get_file_as_bytes(FIX + "tone_a.mp3.fixture")
 	_ogg = FileAccess.get_file_as_bytes(FIX + "tone_b.ogg.fixture")
@@ -42,7 +42,7 @@ static func _apic(mime: String, img: PackedByteArray, enc: int = 0, desc: String
 
 class FakeBench:
 	extends RefCounted
-	var server := DotHttpServer.new()
+	var server := GSHttpServer.new()
 	var pages: Dictionary = {}
 
 	func register_page(id: String, title: String, html: String, flag: String = "") -> bool:
@@ -57,25 +57,25 @@ func _test_cover_and_page() -> void:
 	tf.close()
 	_section("album, cover and the workbench page")
 	var png := PackedByteArray(PNG)
-	var tags := DotRadioTags.read(_id3(3, [["TIT2", _txt(0, "S")], ["TALB", _txt(0, "The Album")]]) + _mp3, "mp3")
+	var tags := GSRadioTags.read(_id3(3, [["TIT2", _txt(0, "S")], ["TALB", _txt(0, "The Album")]]) + _mp3, "mp3")
 	_check(tags["album"] == "The Album", "ID3v2 album")
-	var v4 := DotRadioTags.read(_id3(4, [["TALB", _txt(3, "Caf\u00e9")]]) + _mp3, "mp3")
+	var v4 := GSRadioTags.read(_id3(4, [["TALB", _txt(3, "Caf\u00e9")]]) + _mp3, "mp3")
 	_check(v4["album"] == "Caf\u00e9", "ID3v2.4 UTF-8 album")
-	_check(DotRadioTags.read(_vorbis_tags(["ALBUM=Ogg Album"]), "ogg")["album"] == "Ogg Album", "Vorbis album")
+	_check(GSRadioTags.read(_vorbis_tags(["ALBUM=Ogg Album"]), "ogg")["album"] == "Ogg Album", "Vorbis album")
 	var with_cover := _id3(3, [["TALB", _txt(0, "A")], ["APIC", _apic("image/png", png)]]) + _mp3
-	var cov := DotRadioTags.cover(with_cover, "mp3")
+	var cov := GSRadioTags.cover(with_cover, "mp3")
 	_check(cov.get("mime", "") == "image/png" and cov.get("data", PackedByteArray()) == png, "APIC cover, found after another frame")
 	var jpg := PackedByteArray([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4])
-	var jc := DotRadioTags.cover(_id3(4, [["APIC", _apic("image/png", jpg, 1)]]) + _mp3, "mp3")
+	var jc := GSRadioTags.cover(_id3(4, [["APIC", _apic("image/png", jpg, 1)]]) + _mp3, "mp3")
 	_check(jc.get("mime", "") == "image/jpeg" and jc.get("data", PackedByteArray()) == jpg, "the mime comes from the bytes, and a UTF-16 description is skipped")
 	var pic22 := PackedByteArray([0]) + "PNG".to_ascii_buffer() + PackedByteArray([3, 0]) + png
 	var t22 := "ID3".to_ascii_buffer() + PackedByteArray([2, 0, 0]) + _ss(6 + pic22.size()) + "PIC".to_ascii_buffer() + PackedByteArray([0, (pic22.size() >> 8) & 0xFF, pic22.size() & 0xFF]) + pic22 + _mp3
-	_check(DotRadioTags.cover(t22, "mp3").get("mime", "") == "image/png", "ID3v2.2 PIC cover")
-	_check(DotRadioTags.cover(_id3(3, [["APIC", _apic("image/png", "not an image at all".to_ascii_buffer())]]) + _mp3, "mp3").is_empty(), "bytes that are not PNG or JPEG are not a cover")
+	_check(GSRadioTags.cover(t22, "mp3").get("mime", "") == "image/png", "ID3v2.2 PIC cover")
+	_check(GSRadioTags.cover(_id3(3, [["APIC", _apic("image/png", "not an image at all".to_ascii_buffer())]]) + _mp3, "mp3").is_empty(), "bytes that are not PNG or JPEG are not a cover")
 	var huge := png.duplicate()
-	huge.resize(DotRadioTags.MAX_COVER + 1)
-	_check(DotRadioTags.cover(_id3(3, [["APIC", _apic("image/png", huge)]]) + _mp3, "mp3").is_empty(), "a cover over the cap is dropped")
-	_check(DotRadioTags.cover(_mp3, "mp3").is_empty() and DotRadioTags.cover(_ogg, "ogg").is_empty(), "no cover when there is none, and OGG covers are not read")
+	huge.resize(GSRadioTags.MAX_COVER + 1)
+	_check(GSRadioTags.cover(_id3(3, [["APIC", _apic("image/png", huge)]]) + _mp3, "mp3").is_empty(), "a cover over the cap is dropped")
+	_check(GSRadioTags.cover(_mp3, "mp3").is_empty() and GSRadioTags.cover(_ogg, "ogg").is_empty(), "no cover when there is none, and OGG covers are not read")
 
 	var t := [100.0]
 	var h := _http("cov", t)
@@ -100,15 +100,15 @@ func _test_cover_and_page() -> void:
 	h.stop()
 
 	var bench := FakeBench.new()
-	var rh := DotRadioHttp.new(_api("wb", t))
+	var rh := GSRadioHttp.new(_api("wb", t))
 	rh.api.set_admin_token("s3cret")
-	_check(not DotRadioWorkbench.register(bench, rh, "radio") and bench.pages.is_empty(), "a prefix that is not a plain path is refused")
-	_check(DotRadioWorkbench.register(bench, rh, "/radio") and bench.pages.has("radio") and bench.pages["radio"][2] == "radio", "the radio registers its own page behind the radio flag")
+	_check(not GSRadioWorkbench.register(bench, rh, "radio") and bench.pages.is_empty(), "a prefix that is not a plain path is refused")
+	_check(GSRadioWorkbench.register(bench, rh, "/radio") and bench.pages.has("radio") and bench.pages["radio"][2] == "radio", "the radio registers its own page behind the radio flag")
 	var html: String = bench.pages["radio"][1]
 	_check(html.contains('<meta name="radio-root" content="/radio/">') and html.contains("<title>Radio</title>"), "the page carries the radio route root")
 	bench.server.start(0)
 	_check(_raw(rh, "GET", "/radio/now", "")["status"] == 200 and _raw(rh, "GET", "/radio/", "")["status"] == 200, "the radio routes are mounted on the workbench's server")
 	bench.server.stop()
 	rh.page_path = "res://nowhere.html"
-	_check(not DotRadioWorkbench.register(FakeBench.new(), rh), "a missing page file registers nothing")
+	_check(not GSRadioWorkbench.register(FakeBench.new(), rh), "a missing page file registers nothing")
 

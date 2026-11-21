@@ -1,4 +1,4 @@
-class_name DotRadioTags
+class_name GSRadioTags
 extends RefCounted
 
 ## Reads title, artist, album and the front cover out of an upload: ID3v2 (2.2, 2.3, 2.4) then ID3v1 for MP3, Vorbis and Opus comments for OGG. Best effort and bounded: a damaged or unknown tag gives an empty result, never an error, and nothing here reads past the buffer.
@@ -15,13 +15,13 @@ const MAX_COVER_SCAN := MAX_COVER + 65536
 ## {"title": String, "artist": String, "album": String}; any may be empty.
 static func read(bytes: PackedByteArray, kind: String = "") -> Dictionary:
 	if kind.is_empty():
-		kind = DotRadioCodec.kind_of(bytes)
+		kind = GSRadioCodec.kind_of(bytes)
 	var out := _blank()
-	if kind == DotRadioCodec.MP3:
+	if kind == GSRadioCodec.MP3:
 		_merge(out, _id3v2(bytes))
 		if out["title"].is_empty() or out["artist"].is_empty():
 			_merge(out, _id3v1(bytes))
-	elif kind == DotRadioCodec.OGG:
+	elif kind == GSRadioCodec.OGG:
 		_merge(out, _vorbis(bytes))
 	return out
 
@@ -29,8 +29,8 @@ static func read(bytes: PackedByteArray, kind: String = "") -> Dictionary:
 ## The front cover of an MP3's ID3v2 tag (APIC, or PIC in 2.2) as {"mime": "image/png" or "image/jpeg", "data": PackedByteArray}, or {} when there is none, it is not a PNG or JPEG by its magic bytes, or it is over [constant MAX_COVER]. The mime comes from the bytes, not from the tag. OGG covers are not read: Vorbis stores them base64 across page boundaries.
 static func cover(bytes: PackedByteArray, kind: String = "") -> Dictionary:
 	if kind.is_empty():
-		kind = DotRadioCodec.kind_of(bytes)
-	if kind != DotRadioCodec.MP3:
+		kind = GSRadioCodec.kind_of(bytes)
+	if kind != GSRadioCodec.MP3:
 		return {}
 	var found: Variant = _id3v2(bytes, true).get("cover", {})
 	return found if found is Dictionary else {}

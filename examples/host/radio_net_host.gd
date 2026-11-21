@@ -1,11 +1,11 @@
 class_name RadioNetHost
 extends RefCounted
 
-## Wires dot-radio's schedule replication onto a [DotNetManager]: the server side broadcasts [RadioScheduleMessage] from its tick and greets each new peer, the client side hands received payloads to [method DotRadioClient.apply_wire]. Register before the manager starts (it seals the message table). Audio still downloads over HTTP.
+## Wires dot-radio's schedule replication onto a [GSNetManager]: the server side broadcasts [RadioScheduleMessage] from its tick and greets each new peer, the client side hands received payloads to [method GSRadioClient.apply_wire]. Register before the manager starts (it seals the message table). Audio still downloads over HTTP.
 
-var replicator: DotRadioReplicator
-var client: DotRadioClient
-var manager: DotNetManager
+var replicator: GSRadioReplicator
+var client: GSRadioClient
+var manager: GSNetManager
 
 ## Schedules this client applied, and payloads it refused.
 var applied := 0
@@ -13,17 +13,17 @@ var refused := 0
 
 
 ## Server: call [method update] from the tick, [method greet] from the peer-connected hook.
-static func serve(p_manager: DotNetManager, station: DotRadioStation) -> RadioNetHost:
+static func serve(p_manager: GSNetManager, station: GSRadioStation) -> RadioNetHost:
 	var h := RadioNetHost.new()
 	h.manager = p_manager
-	h.replicator = DotRadioReplicator.new(station)
+	h.replicator = GSRadioReplicator.new(station)
 	h.replicator.broadcast = func(bytes: PackedByteArray) -> void: p_manager.send(RadioScheduleMessage.make(bytes), 0)
 	_register(p_manager)
 	return h
 
 
 ## Client: stops the radio client polling `/now`; it follows the pushed schedule.
-static func follow(p_manager: DotNetManager, p_client: DotRadioClient) -> RadioNetHost:
+static func follow(p_manager: GSNetManager, p_client: GSRadioClient) -> RadioNetHost:
 	var h := RadioNetHost.new()
 	h.manager = p_manager
 	h.client = p_client
@@ -42,12 +42,12 @@ func greet(peer_id: int) -> void:
 		manager.send(RadioScheduleMessage.make(replicator.snapshot()), peer_id)
 
 
-static func _register(m: DotNetManager) -> void:
+static func _register(m: GSNetManager) -> void:
 	m.messages.register(RadioScheduleMessage.TYPE, RadioScheduleMessage,
-		DotNetMessage.Delivery.RELIABLE, DotNetMessage.Direction.TO_CLIENT)
+		GSNetMessage.Delivery.RELIABLE, GSNetMessage.Direction.TO_CLIENT)
 
 
-func _on_message(message: DotNetMessage) -> void:
+func _on_message(message: GSNetMessage) -> void:
 	if client != null and client.apply_wire((message as RadioScheduleMessage).payload).ok:
 		applied += 1
 	else:

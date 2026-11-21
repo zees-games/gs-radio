@@ -1,6 +1,6 @@
 extends Node
 
-## End to end: a real server [DotNetManager] pushes the station's schedule to a real client manager through [RadioNetHost] and [RadioScheduleMessage], and the [DotRadioClient] follows it. Needs dot-net (and dot-profile) linked beside dot-core.
+## End to end: a real server [GSNetManager] pushes the station's schedule to a real client manager through [RadioNetHost] and [RadioScheduleMessage], and the [GSRadioClient] follows it. Needs dot-net (and dot-profile) linked beside dot-core.
 ## Run: godot --headless --path . res://examples/radio_net_selftest.tscn
 
 const SECTIONS := 1
@@ -13,7 +13,7 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_line("dot-radio dot-net self-test")
 	_test_end_to_end()
 	_line("")
@@ -25,8 +25,8 @@ func _ready() -> void:
 	get_tree().quit(1 if _failed > 0 else 0)
 
 
-func _manager(server: bool, scope: StringName, peer: int) -> DotNetManager:
-	var m := DotNetManager.new()
+func _manager(server: bool, scope: StringName, peer: int) -> GSNetManager:
+	var m := GSNetManager.new()
 	m.is_server = server
 	m.local_peer_id = peer
 	m.auto_tick = false
@@ -41,11 +41,11 @@ func _test_end_to_end() -> void:
 	_section("schedule over dot-net")
 	var t := [100.0]
 	var mp3 := FileAccess.get_file_as_bytes("res://examples/fixtures/tone_a.mp3.fixture")
-	var lib := DotRadioLibrary.new()
+	var lib := GSRadioLibrary.new()
 	lib.root = BASE.path_join("lib")
 	lib.add("a.mp3", mp3, {"id": "a", "title": "Alpha", "artist": "X"})
 	lib.add("b.mp3", mp3, {"id": "b", "title": "Beta", "artist": "Y"})
-	var st := DotRadioStation.new(lib, 3)
+	var st := GSRadioStation.new(lib, 3)
 	st.clock = func() -> float: return t[0]
 	st.set_playlist(["a", "b"])
 
@@ -55,12 +55,12 @@ func _test_end_to_end() -> void:
 	server.send_fn = func(to: int, payload: PackedByteArray, _d: int) -> void: wire.append([1, to, payload])
 	peer.send_fn = func(to: int, payload: PackedByteArray, _d: int) -> void: wire.append([2, to, payload])
 
-	var rc := DotRadioClient.new()
+	var rc := GSRadioClient.new()
 	rc.bind_input = false
 	rc.clock = func() -> float: return t[0]
 	rc.cache_dir = BASE.path_join("cache")
-	rc.fetcher = func(_url: String) -> DotResult: return DotResult.success(mp3)
-	var sink := DotRadioSinkNull.new()
+	rc.fetcher = func(_url: String) -> GSResult: return GSResult.success(mp3)
+	var sink := GSRadioSinkNull.new()
 	sink.clock = rc.clock
 	rc.sink = sink
 	add_child(rc)
@@ -103,7 +103,7 @@ func _test_end_to_end() -> void:
 	var before := wire.size()
 	_check(forged.ok and before > 0, "the client managed to encode a forged schedule")
 	var refused := server.receive(wire[wire.size() - 1][2], 2)
-	_check(not refused.ok and refused.code() == DotError.CODE_FORBIDDEN, "the server refuses a schedule from a client")
+	_check(not refused.ok and refused.code() == GSError.CODE_FORBIDDEN, "the server refuses a schedule from a client")
 	wire.clear()
 
 	# A payload the radio refuses leaves the schedule alone.
@@ -124,16 +124,16 @@ func _schedule_payload_bounds() -> void:
 	var empty := RadioScheduleMessage.new()
 	_check(not empty.validate().ok, "an empty payload fails validation")
 	var big := RadioScheduleMessage.make(PackedByteArray())
-	big.payload.resize(DotRadioReplicator.MAX_BYTES + 1)
+	big.payload.resize(GSRadioReplicator.MAX_BYTES + 1)
 	_check(not big.validate().ok, "an oversized payload fails validation")
 	_check(RadioScheduleMessage.make("x".to_utf8_buffer()).validate().ok, "a small payload validates")
 	var decoded := RadioScheduleMessage.new()
-	decoded.read(DotNetReader.new(RadioScheduleMessage.make("hi".to_utf8_buffer()).to_bytes()))
+	decoded.read(GSNetReader.new(RadioScheduleMessage.make("hi".to_utf8_buffer()).to_bytes()))
 	_check(decoded.payload == "hi".to_utf8_buffer(), "the body round-trips through the writer and reader")
 
 
 # Delivers queued payloads to the other end; the schema tables travel first and are handled by the managers.
-func _pump(wire: Array, server: DotNetManager, peer: DotNetManager) -> void:
+func _pump(wire: Array, server: GSNetManager, peer: GSNetManager) -> void:
 	var guard := 0
 	while not wire.is_empty() and guard < 100:
 		guard += 1

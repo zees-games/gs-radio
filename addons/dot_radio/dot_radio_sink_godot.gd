@@ -1,5 +1,5 @@
-class_name DotRadioSinkGodot
-extends DotRadioSink
+class_name GSRadioSinkGodot
+extends GSRadioSink
 
 ## Plays through one AudioStreamPlayer on [member bus]; [method attach] puts it in the tree.
 

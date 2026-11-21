@@ -1,9 +1,9 @@
-class_name DotRadioHud
+class_name GSRadioHud
 extends PanelContainer
 
-## A listener HUD for a DotRadioClient: tune button, "artist - title", a position bar, a volume slider and a mute toggle. Built in code, no scene, no theme assumptions; place it yourself. Bind with [method bind].
+## A listener HUD for a GSRadioClient: tune button, "artist - title", a position bar, a volume slider and a mute toggle. Built in code, no scene, no theme assumptions; place it yourself. Bind with [method bind].
 
-var client: DotRadioClient
+var client: GSRadioClient
 
 var tune_button := Button.new()
 var title_label := Label.new()
@@ -50,7 +50,7 @@ func _init() -> void:
 
 
 ## Attaches to [param c] (once; rebinding drops the old client's connections) and shows its state.
-func bind(c: DotRadioClient) -> void:
+func bind(c: GSRadioClient) -> void:
 	if client != null:
 		client.tuned_changed.disconnect(_on_client_changed)
 		client.now_updated.disconnect(_on_client_changed)
@@ -118,7 +118,7 @@ func _update_progress() -> void:
 	var secs := Vector2i(maxi(0, int(progress.value)), maxi(0, int(dur))) if dur > 0.0 else Vector2i(-1, -1)
 	if secs != _tip_secs:
 		_tip_secs = secs
-		tooltip_text = DotRadioHud.progress_text(progress.value, dur)
+		tooltip_text = GSRadioHud.progress_text(progress.value, dur)
 
 
 func _on_client_changed(_arg: Variant = null) -> void:

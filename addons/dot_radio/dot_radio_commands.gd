@@ -1,4 +1,4 @@
-class_name DotRadioCommands
+class_name GSRadioCommands
 extends RefCounted
 
 ## Chat-style commands (!radio, !song, !request, !rate) over a client and a server call, with no dependency on dot-console or dot-chat.
@@ -14,11 +14,11 @@ const COMMANDS := {
 }
 const ALIASES := {"like": "rate up", "dislike": "rate down"}
 
-var client: DotRadioClient
-## Callable(request: Dictionary) -> DotResult, awaitable: the game's way of reaching the server's [DotRadioApi] as this player.
+var client: GSRadioClient
+## Callable(request: Dictionary) -> GSResult, awaitable: the game's way of reaching the server's [GSRadioApi] as this player.
 var send: Callable = Callable()
 ## Local shortcut for a listen server or a test: used when [member send] is not set.
-var api: DotRadioApi
+var api: GSRadioApi
 var actor: Variant = ""
 var prefix := "!"
 
@@ -115,10 +115,10 @@ func _rate(args: String) -> String:
 	return "Thanks (+%d/-%d)." % [res.value["up"], res.value["down"]] if res.ok else res.error.message
 
 
-func _call(req: Dictionary) -> DotResult:
+func _call(req: Dictionary) -> GSResult:
 	if send.is_valid():
 		return await send.call(req)
 	if api != null:
 		return api.handle(actor, req)
-	DotLog.warn(CHANNEL, "radio command with no send callable or api")
-	return DotResult.fail(DotError.CODE_UNSUPPORTED, "no server connection for the radio")
+	GSLog.warn(CHANNEL, "radio command with no send callable or api")
+	return GSResult.fail(GSError.CODE_UNSUPPORTED, "no server connection for the radio")

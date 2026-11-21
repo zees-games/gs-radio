@@ -1,5 +1,5 @@
-class_name DotRadioSinkNull
-extends DotRadioSink
+class_name GSRadioSinkNull
+extends GSRadioSink
 
 ## A sink that plays nothing and keeps time from [member clock], so the client's seek and drift logic runs headless.
 

@@ -12,8 +12,8 @@ An in-game radio for a game server. The operator uploads MP3 and OGG tracks thro
 ## Server
 
 ```gdscript
-var radio := DotRadioHttp.new()
-radio.start_from_config(DotRadioHttp.read_config())   # the radio: block of cfg/server.yml
+var radio := GSRadioHttp.new()
+radio.start_from_config(GSRadioHttp.read_config())   # the radio: block of cfg/server.yml
 # in _process:
 radio.poll()
 ```
@@ -53,14 +53,14 @@ curl -T song.mp3 -H "Authorization: Bearer $(cat radio.token)" "http://127.0.0.1
 | `now`, `tracks`, `playlist`, `request`, `rate` | Listeners |
 | `upload`, `delete`, `edit`, `reorder`, `playlist_add`, `playlist_remove`, `queue`, `dequeue`, `clear_queue`, `skip`, `mode`, `start`, `stop` | Admin |
 
-To share another `DotHttpServer` instead of opening a second port, call `radio.mount(server, "/radio")`.
+To share another `GSHttpServer` instead of opening a second port, call `radio.mount(server, "/radio")`.
 
 ## Client
 
 ```gdscript
-var radio := DotRadioClient.new()
+var radio := GSRadioClient.new()
 radio.base_url = "http://server:8791"
-radio.sink = DotRadioSinkGodot.new()   # then radio.sink.attach(self)
+radio.sink = GSRadioSinkGodot.new()   # then radio.sink.attach(self)
 add_child(radio)
 ```
 
@@ -72,7 +72,7 @@ Playback starts only when the player presses the toggle key.
 | `radio_mute` | F9 |
 | `radio_volume_up` / `radio_volume_down` | Page Up / Page Down |
 
-The actions are added to the InputMap only if your project has not defined them, so players can rebind them. `DotRadioCommands` adds `!radio`, `!song`, `!request <title>` and `!rate up|down` to any command registry with `add_command(name, help, fn)`.
+The actions are added to the InputMap only if your project has not defined them, so players can rebind them. `GSRadioCommands` adds `!radio`, `!song`, `!request <title>` and `!rate up|down` to any command registry with `add_command(name, help, fn)`.
 
 Web builds work: files are fetched with `HTTPRequest`, and the public routes allow any origin.
 

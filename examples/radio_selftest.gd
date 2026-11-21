@@ -8,7 +8,7 @@ const CHECKS := 189
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_line("dot-radio self-test")
 	_mp3 = FileAccess.get_file_as_bytes(FIX + "tone_a.mp3.fixture")
 	_ogg = FileAccess.get_file_as_bytes(FIX + "tone_b.ogg.fixture")
@@ -48,24 +48,24 @@ func _test_persistence() -> void:
 	st.rate("u1", "c", 1)
 	st.set_playlist(["c", "a"])
 	_check(FileAccess.file_exists(st.state_path), "edits write the state file")
-	var again := DotRadioStation.new(st.library)
+	var again := GSRadioStation.new(st.library)
 	again.state_path = st.state_path
 	_check(again.load_state().ok and again.playlist == ["c", "a"] and again.shuffle and not again.loop, "playlist and modes come back")
 	_check(again.queue.size() == 1 and again.queue[0]["id"] == "b" and again.rating_of("c")["up"] == 1, "queue and ratings come back")
 	st.library.remove("a")
-	var third := DotRadioStation.new(st.library)
+	var third := GSRadioStation.new(st.library)
 	third.state_path = st.state_path
 	third.load_state()
 	_check(third.playlist == ["c"], "a track deleted meanwhile is dropped on load")
 	DirAccess.open(BASE.path_join("ps")).remove("station.json")
-	_check(DotRadioStation.new(st.library).load_state().ok, "no state path is a quiet success")
+	_check(GSRadioStation.new(st.library).load_state().ok, "no state path is a quiet success")
 
 
-func _api(sub: String, t: Array) -> DotRadioApi:
+func _api(sub: String, t: Array) -> GSRadioApi:
 	var lib := _fake_library(sub)
-	var st := DotRadioStation.new(lib, 3)
+	var st := GSRadioStation.new(lib, 3)
 	st.clock = _clock(t)
-	var api := DotRadioApi.new(lib, st)
+	var api := GSRadioApi.new(lib, st)
 	api.set_admin_token("s3cret")
 	api.permit = func(actor: Variant, flag: String) -> bool: return actor == "alice" and flag == "radio"
 	return api
@@ -75,30 +75,30 @@ func _test_api() -> void:
 	_section("api and permissions")
 	var t := [10.0]
 	var api := _api("api", t)
-	var tok := DotRadioApi.TOKEN_ACTOR
+	var tok := GSRadioApi.TOKEN_ACTOR
 	var up := api.handle(tok, {"op": "upload", "name": "one.mp3", "data": Marshalls.raw_to_base64(_fake(10))})
 	_check(up.ok and up.value["id"] == "one" and api.station.playlist == ["one"], "the token uploads (base64) and the track joins the playlist")
 	_check(api.handle("alice", {"op": "upload", "name": "two.mp3", "data": Marshalls.raw_to_base64(_fake(20))}).ok, "an actor the host's permit admits can upload")
-	_check(_code(api.handle("bob", {"op": "upload", "name": "x.mp3", "data": Marshalls.raw_to_base64(_fake(5))})) == DotError.CODE_FORBIDDEN, "a listener cannot upload")
-	_check(_code(api.handle("bob", {"op": "skip"})) == DotError.CODE_FORBIDDEN and _code(api.handle("bob", {"op": "delete", "id": "one"})) == DotError.CODE_FORBIDDEN, "listeners cannot skip or delete")
+	_check(_code(api.handle("bob", {"op": "upload", "name": "x.mp3", "data": Marshalls.raw_to_base64(_fake(5))})) == GSError.CODE_FORBIDDEN, "a listener cannot upload")
+	_check(_code(api.handle("bob", {"op": "skip"})) == GSError.CODE_FORBIDDEN and _code(api.handle("bob", {"op": "delete", "id": "one"})) == GSError.CODE_FORBIDDEN, "listeners cannot skip or delete")
 	_check(api.handle("bob", {"op": "tracks"}).ok and api.handle("bob", {"op": "now"}).ok and api.handle("bob", {"op": "playlist"}).ok, "listeners can read")
 	api.handle(tok, {"op": "start"})
 	_check(api.handle("bob", {"op": "request", "id": "two"}).ok and api.station.queue.size() == 1, "a listener can request")
 	_check(api.handle("bob", {"op": "rate", "value": 1}).value["up"] == 1, "a listener rates the playing track by default")
-	_check(_code(api.handle(null, {"op": "now"})) == DotError.CODE_AUTH and _code(api.handle("", {"op": "now"})) == DotError.CODE_AUTH, "no actor is refused")
-	_check(_code(api.handle(tok, {"op": "explode"})) == DotError.CODE_INVALID, "an unknown op is invalid")
+	_check(_code(api.handle(null, {"op": "now"})) == GSError.CODE_AUTH and _code(api.handle("", {"op": "now"})) == GSError.CODE_AUTH, "no actor is refused")
+	_check(_code(api.handle(tok, {"op": "explode"})) == GSError.CODE_INVALID, "an unknown op is invalid")
 	api.token_flags = PackedStringArray()
-	_check(_code(api.handle(tok, {"op": "skip"})) == DotError.CODE_FORBIDDEN, "a token without the flag is not an admin")
+	_check(_code(api.handle(tok, {"op": "skip"})) == GSError.CODE_FORBIDDEN, "a token without the flag is not an admin")
 	api.token_flags = PackedStringArray(["radio"])
 	api.allow_requests = false
-	_check(_code(api.handle("bob", {"op": "request", "id": "one"})) == DotError.CODE_FORBIDDEN and api.handle("alice", {"op": "rate", "value": 1}).ok, "requests can be switched off for listeners only")
-	_check(api.authenticate("s3cret").ok and _code(api.authenticate("wrong")) == DotError.CODE_AUTH and _code(api.authenticate("")) == DotError.CODE_AUTH, "the token authenticates; wrong and empty are refused")
-	var plain := DotRadioApi.new()
-	_check(_code(plain.authenticate("anything")) == DotError.CODE_AUTH, "no configured token refuses everything")
+	_check(_code(api.handle("bob", {"op": "request", "id": "one"})) == GSError.CODE_FORBIDDEN and api.handle("alice", {"op": "rate", "value": 1}).ok, "requests can be switched off for listeners only")
+	_check(api.authenticate("s3cret").ok and _code(api.authenticate("wrong")) == GSError.CODE_AUTH and _code(api.authenticate("")) == GSError.CODE_AUTH, "the token authenticates; wrong and empty are refused")
+	var plain := GSRadioApi.new()
+	_check(_code(plain.authenticate("anything")) == GSError.CODE_AUTH, "no configured token refuses everything")
 	api.identity = func(tk: String) -> Variant: return "carol" if tk == "carol-session" else null
 	_check(api.authenticate("carol-session").value == "carol" and not api.is_admin("carol"), "an identity hook yields an actor, who is not admin unless permit says so")
-	# the shared dot-core gate (DotAdminIdentity) with the radio flag
-	var gate := DotAdminIdentity.new()
+	# the shared dot-core gate (GSAdminIdentity) with the radio flag
+	var gate := GSAdminIdentity.new()
 	gate.channel = "radio"
 	gate.flags = PackedStringArray(["radio"])
 	gate.admin_uids = PackedStringArray(["backbone:a"])
@@ -107,29 +107,29 @@ func _test_api() -> void:
 	gated.identity = gate.authenticate
 	gated.permit = gate.permit
 	var adm := gated.authenticate("adm")
-	_check(adm.ok and adm.value == "id:backbone:a" and gated.is_admin(adm.value), "DotAdminIdentity admits a listed admin as a radio admin")
-	_check(_code(gated.authenticate("usr")) == DotError.CODE_AUTH, "a signed-in non-admin is not admitted by the gate")
-	_check(_code(gated.authenticate("gst")) == DotError.CODE_AUTH and _code(gated.authenticate("nobody")) == DotError.CODE_AUTH, "a guest and an unknown token are refused")
+	_check(adm.ok and adm.value == "id:backbone:a" and gated.is_admin(adm.value), "GSAdminIdentity admits a listed admin as a radio admin")
+	_check(_code(gated.authenticate("usr")) == GSError.CODE_AUTH, "a signed-in non-admin is not admitted by the gate")
+	_check(_code(gated.authenticate("gst")) == GSError.CODE_AUTH and _code(gated.authenticate("nobody")) == GSError.CODE_AUTH, "a guest and an unknown token are refused")
 	_check(not gated.is_admin("id:backbone:u") and not gated.is_admin("stranger"), "an actor the gate did not admit holds no radio flag")
-	_check(gated.authenticate("s3cret").value == DotRadioApi.TOKEN_ACTOR, "the admin token keeps working beside the gate")
+	_check(gated.authenticate("s3cret").value == GSRadioApi.TOKEN_ACTOR, "the admin token keeps working beside the gate")
 	gate.flags = PackedStringArray()
 	_check(not gated.is_admin(adm.value), "an admitted identity with no flags is not admin (flags are empty by default)")
-	_check(_code(gated.handle(adm.value, {"op": "skip"})) == DotError.CODE_FORBIDDEN and gated.handle(adm.value, {"op": "now"}).ok, "such an actor still listens")
+	_check(_code(gated.handle(adm.value, {"op": "skip"})) == GSError.CODE_FORBIDDEN and gated.handle(adm.value, {"op": "now"}).ok, "such an actor still listens")
 	var big := _api("api2", t)
 	big.set_admin_token("x")
 	big.library.max_track_bytes = 100
-	_check(_code(big.handle(DotRadioApi.TOKEN_ACTOR, {"op": "upload", "name": "b.mp3", "data": "A".repeat(500)})) == DotError.CODE_INVALID, "an oversized base64 body is refused before decoding")
+	_check(_code(big.handle(GSRadioApi.TOKEN_ACTOR, {"op": "upload", "name": "b.mp3", "data": "A".repeat(500)})) == GSError.CODE_INVALID, "an oversized base64 body is refused before decoding")
 	var reply: Dictionary = JSON.parse_string(api.handle_json("s3cret", '{"op":"now"}'))
 	_check(reply["ok"] == true and reply["value"].has("server_time"), "handle_json round trip")
-	_check(JSON.parse_string(api.handle_json("nope", '{"op":"now"}'))["error"]["code"] == DotError.CODE_AUTH and JSON.parse_string(api.handle_json("s3cret", "[1]"))["error"]["code"] == DotError.CODE_INVALID, "handle_json refuses a bad token and a non-object body")
+	_check(JSON.parse_string(api.handle_json("nope", '{"op":"now"}'))["error"]["code"] == GSError.CODE_AUTH and JSON.parse_string(api.handle_json("s3cret", "[1]"))["error"]["code"] == GSError.CODE_INVALID, "handle_json refuses a bad token and a non-object body")
 	var order := api.handle(tok, {"op": "reorder", "ids": ["two", "one"]})
-	_check(order.ok and api.station.playlist == ["two", "one"] and _code(api.handle(tok, {"op": "reorder", "ids": ["two", "ghost"]})) == DotError.CODE_INVALID, "reorder sets the order and rejects unknown ids")
+	_check(order.ok and api.station.playlist == ["two", "one"] and _code(api.handle(tok, {"op": "reorder", "ids": ["two", "ghost"]})) == GSError.CODE_INVALID, "reorder sets the order and rejects unknown ids")
 	_check(api.handle(tok, {"op": "mode", "shuffle": true, "loop": false}).ok and api.station.shuffle and not api.station.loop, "mode sets shuffle and loop")
 	_check(api.handle(tok, {"op": "delete", "id": "one"}).ok and not api.station.playlist.has("one"), "delete takes the track out of the playlist")
 
 
 # Runs the server's poll while the client side of a socket exchange completes; returns {status, head, body}.
-func _raw(h: DotRadioHttp, method: String, path: String, token: String = "s3cret", body: PackedByteArray = PackedByteArray(), claim: int = -1) -> Dictionary:
+func _raw(h: GSRadioHttp, method: String, path: String, token: String = "s3cret", body: PackedByteArray = PackedByteArray(), claim: int = -1) -> Dictionary:
 	var head := "%s %s HTTP/1.1\r\nHost: x\r\nContent-Length: %d\r\n" % [method, path, body.size() if claim < 0 else claim]
 	if token != "":
 		head += "Authorization: Bearer %s\r\n" % token
@@ -164,10 +164,10 @@ func _raw(h: DotRadioHttp, method: String, path: String, token: String = "s3cret
 	return {"status": int(text.split(" ")[1]) if text.length() > 12 else -1, "head": head_text, "body": payload, "json": parsed if parsed is Dictionary else {}}
 
 
-func _http(sub: String, t: Array) -> DotRadioHttp:
+func _http(sub: String, t: Array) -> GSRadioHttp:
 	var api := _api(sub, t)
 	api.library.probe = Callable()
-	var h := DotRadioHttp.new(api)
+	var h := GSRadioHttp.new(api)
 	return h
 
 
@@ -176,8 +176,8 @@ func _test_http() -> void:
 	var t := [100.0]
 	var h := _http("http", t)
 	_check(h.start_from_config({"enabled": false}).ok and not h.server.is_listening(), "disabled by default opens nothing")
-	_check(not DotRadioHttp.new(_api("h0", t)).start_from_config({"enabled": true}).ok, "enabled with no token source refuses to start")
-	_check(not DotRadioHttp.new(_api("h0", t)).start_from_config({"enabled": true, "token_file": BASE + "/missing.token"}).ok, "a missing token file refuses to start")
+	_check(not GSRadioHttp.new(_api("h0", t)).start_from_config({"enabled": true}).ok, "enabled with no token source refuses to start")
+	_check(not GSRadioHttp.new(_api("h0", t)).start_from_config({"enabled": true, "token_file": BASE + "/missing.token"}).ok, "a missing token file refuses to start")
 	DirAccess.make_dir_recursive_absolute(BASE)
 	var tf := FileAccess.open(BASE + "/radio.token", FileAccess.WRITE)
 	tf.store_string("  s3cret\n")
@@ -194,7 +194,7 @@ func _test_http() -> void:
 	_check(put["status"] == 200 and put["json"]["value"]["id"] == "sunrise" and put["json"]["value"]["artist"] == "Tester", "PUT uploads raw audio with title and artist in the query")
 	var got := _raw(h, "GET", "/track/sunrise", "")
 	_check(got["status"] == 200 and got["body"] == _mp3 and got["head"].to_lower().contains("content-type: audio/mpeg"), "the track file is served to anyone, byte for byte")
-	_check(got["head"].to_lower().contains("access-control-allow-origin: *") and got["head"].contains('ETag: "' + DotHash.sha256_bytes(_mp3) + '"'), "public reads allow any origin and carry the hash as ETag")
+	_check(got["head"].to_lower().contains("access-control-allow-origin: *") and got["head"].contains('ETag: "' + GSHash.sha256_bytes(_mp3) + '"'), "public reads allow any origin and carry the hash as ETag")
 	_check(_raw(h, "GET", "/track/nothing", "")["status"] == 404 and _raw(h, "GET", "/track/..%2Flibrary.json", "")["status"] == 404, "an unknown or traversing track id is 404")
 	var tracks := _raw(h, "GET", "/tracks", "")
 	_check(tracks["status"] == 200 and tracks["json"]["tracks"].size() == 1, "the track list is public")
@@ -223,8 +223,8 @@ func _test_http() -> void:
 		_raw(h, "GET", "/api/now", "bad")
 	_check(_raw(h, "GET", "/api/now", "s3cret")["status"] == 429, "repeated bad tokens lock the address out with 429")
 	h.stop()
-	var shared := DotHttpServer.new()
-	var h2 := DotRadioHttp.new(_api("h2", t))
+	var shared := GSHttpServer.new()
+	var h2 := GSRadioHttp.new(_api("h2", t))
 	h2.mount(shared, "/radio")
 	h2.api.set_admin_token("s3cret")
 	shared.start(0)
@@ -238,21 +238,21 @@ func _test_client() -> void:
 	_section("client with a null sink")
 	var t := [0.0]
 	var clock := _clock(t)
-	var lib := DotRadioLibrary.new()
+	var lib := GSRadioLibrary.new()
 	lib.root = BASE.path_join("cl")
 	var ta: Dictionary = lib.add("a.mp3", _mp3, {"id": "a"}).value
 	var tb: Dictionary = lib.add("b.ogg", _ogg, {"id": "b"}).value
 	var served := {"a": _mp3, "b": _ogg}
 	var fetched := []
-	var c := DotRadioClient.new()
+	var c := GSRadioClient.new()
 	c.bind_input = false
 	c.clock = clock
 	c.cache_dir = BASE.path_join("cache")
-	c.fetcher = func(url: String) -> DotResult:
+	c.fetcher = func(url: String) -> GSResult:
 		fetched.append(url)
 		var id := url.get_file()
-		return DotResult.success(served[id]) if served.has(id) else DotResult.fail(DotError.CODE_HTTP, "404")
-	var sink := DotRadioSinkNull.new()
+		return GSResult.success(served[id]) if served.has(id) else GSResult.fail(GSError.CODE_HTTP, "404")
+	var sink := GSRadioSinkNull.new()
 	sink.clock = clock
 	c.sink = sink
 	c.base_url = ""
@@ -314,12 +314,12 @@ func _test_client() -> void:
 	c.tick()
 	_check(sink.plays.size() == 3, "an untuned client does nothing on tick")
 	# a corrupted download is rejected
-	var c2 := DotRadioClient.new()
+	var c2 := GSRadioClient.new()
 	c2.bind_input = false
 	c2.clock = clock
 	c2.cache_dir = BASE.path_join("cache2")
-	c2.fetcher = func(_u: String) -> DotResult: return DotResult.success(_ogg)
-	var s2 := DotRadioSinkNull.new()
+	c2.fetcher = func(_u: String) -> GSResult: return GSResult.success(_ogg)
+	var s2 := GSRadioSinkNull.new()
 	s2.clock = clock
 	c2.sink = s2
 	add_child(c2)
@@ -358,7 +358,7 @@ func _test_client() -> void:
 
 
 # Pumps frames (and the server) until the condition holds.
-func _until(cond: Callable, h: DotRadioHttp = null, ms: int = 5000) -> bool:
+func _until(cond: Callable, h: GSRadioHttp = null, ms: int = 5000) -> bool:
 	var t0 := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - t0 < ms:
 		if h != null:
@@ -376,15 +376,15 @@ func _test_client_http() -> void:
 	h.api.station.gap_sec = 0.0
 	h.api.set_admin_token("s3cret")
 	h.mount(h.server)
-	h.api.upload_bytes(DotRadioApi.TOKEN_ACTOR, "a.mp3", _mp3, {"id": "a"})
-	h.api.upload_bytes(DotRadioApi.TOKEN_ACTOR, "b.ogg", _ogg, {"id": "b"})
+	h.api.upload_bytes(GSRadioApi.TOKEN_ACTOR, "a.mp3", _mp3, {"id": "a"})
+	h.api.upload_bytes(GSRadioApi.TOKEN_ACTOR, "b.ogg", _ogg, {"id": "b"})
 	h.api.station.start()
 	_check(h.server.start(0).ok, "server listens")
-	var c := DotRadioClient.new()
+	var c := GSRadioClient.new()
 	c.bind_input = false
 	c.cache_dir = BASE.path_join("cache_http")
 	c.base_url = "http://127.0.0.1:%d" % h.server.port()
-	var sink := DotRadioSinkNull.new()
+	var sink := GSRadioSinkNull.new()
 	c.sink = sink
 	add_child(c)
 	t[0] = 100.0
@@ -413,14 +413,14 @@ func _test_commands() -> void:
 	api.library.add("Moonlight.mp3", _fake(30))
 	api.station.set_playlist(["sunrise", "moonlight"])
 	api.station.start()
-	var c := DotRadioClient.new()
+	var c := GSRadioClient.new()
 	c.bind_input = false
 	c.clock = clock
-	c.sink = DotRadioSinkNull.new()
+	c.sink = GSRadioSinkNull.new()
 	add_child(c)
 	c.set_process(false)
 	c.apply_now(api.station.now_playing())
-	var cmds := DotRadioCommands.new()
+	var cmds := GSRadioCommands.new()
 	cmds.client = c
 	cmds.api = api
 	cmds.actor = "bob"
@@ -449,11 +449,11 @@ func _test_commands() -> void:
 	_check(cmds.register(reg) == 4 and seen.has("radio") and seen.has("song") and seen.has("request") and seen.has("rate"), "register hands four commands to a registry with add_command")
 	var out: String = await seen["song"].call("")
 	_check(out.begins_with("Now playing"), "a registered handler runs the command")
-	var cmds2 := DotRadioCommands.new()
+	var cmds2 := GSRadioCommands.new()
 	cmds2.client = c
 	r = await cmds2.execute("!request sunrise")
 	_check(r.contains("no server connection"), "without a server connection a server command says so")
-	cmds2.send = func(req: Dictionary) -> DotResult: return api.handle("carol", req)
+	cmds2.send = func(req: Dictionary) -> GSResult: return api.handle("carol", req)
 	r = await cmds2.execute("!request sunrise")
 	_check(r.contains("playing") or r.contains("Queued"), "a send callable carries the command to the server")
 	c.queue_free()
@@ -471,16 +471,16 @@ class FakeRegistrar extends RefCounted:
 
 func _test_hud() -> void:
 	_section("listener hud")
-	_check(DotRadioHud.format_now({"id": ""}) == "Nothing playing", "an idle station reads Nothing playing")
-	_check(DotRadioHud.format_now({"id": "a", "title": "T", "artist": "Ar"}) == "Ar - T", "artist - title")
-	_check(DotRadioHud.format_now({"id": "a", "title": "T", "artist": ""}) == "T", "no artist shows the title alone")
-	_check(DotRadioHud.format_time(75.9) == "1:15" and DotRadioHud.format_time(-3) == "0:00", "time formats m:ss and clamps")
-	var c := DotRadioClient.new()
+	_check(GSRadioHud.format_now({"id": ""}) == "Nothing playing", "an idle station reads Nothing playing")
+	_check(GSRadioHud.format_now({"id": "a", "title": "T", "artist": "Ar"}) == "Ar - T", "artist - title")
+	_check(GSRadioHud.format_now({"id": "a", "title": "T", "artist": ""}) == "T", "no artist shows the title alone")
+	_check(GSRadioHud.format_time(75.9) == "1:15" and GSRadioHud.format_time(-3) == "0:00", "time formats m:ss and clamps")
+	var c := GSRadioClient.new()
 	c.bind_input = false
-	c.sink = DotRadioSinkNull.new()
+	c.sink = GSRadioSinkNull.new()
 	add_child(c)
 	c.set_process(false)
-	var hud := DotRadioHud.new()
+	var hud := GSRadioHud.new()
 	add_child(hud)
 	hud.bind(c)
 	c.apply_now({"id": "a", "title": "T", "artist": "Ar", "duration": 10.0, "position": 2.0, "next": {"id": "b", "title": "N", "artist": ""}})
@@ -498,7 +498,7 @@ func _test_hud() -> void:
 	c.volume = 0.9
 	hud._process(0.0)
 	_check(is_equal_approx(hud.volume_slider.value, 0.9), "a volume change from the keyboard moves the slider")
-	_check(DotRadioHud.progress_text(65.0, 200.0) == "1:05 / 3:20" and DotRadioHud.progress_text(5.0, 0.0).is_empty(), "the progress tooltip reads position / duration, empty with no duration")
+	_check(GSRadioHud.progress_text(65.0, 200.0) == "1:05 / 3:20" and GSRadioHud.progress_text(5.0, 0.0).is_empty(), "the progress tooltip reads position / duration, empty with no duration")
 	hud.bind(null)
 	c.tune_out()
 	_check(hud.tune_button.button_pressed, "an unbound hud no longer follows the client")
@@ -509,14 +509,14 @@ func _test_hud() -> void:
 func _test_replication() -> void:
 	_section("schedule replication")
 	var t := [100.0]
-	var st := DotRadioStation.new()
-	st.library = DotRadioLibrary.new()
+	var st := GSRadioStation.new()
+	st.library = GSRadioLibrary.new()
 	st.library.root = BASE.path_join("repl")
-	var lib: DotRadioLibrary = st.library
+	var lib: GSRadioLibrary = st.library
 	var ta: Dictionary = lib.add("ra.mp3", _mp3, {"id": "ra", "title": "RA", "artist": "X"}).value
 	st.playlist.append("ra")
 	st.clock = func() -> float: return t[0]
-	var rep := DotRadioReplicator.new(st)
+	var rep := GSRadioReplicator.new(st)
 	rep.clock = func() -> float: return t[0]
 	var got: Array = []
 	_check(not rep.update(), "no broadcast callable means nothing sent")
@@ -529,16 +529,16 @@ func _test_replication() -> void:
 	var rev0 := st.rev
 	st.skip()
 	_check(st.rev != rev0 and rep.update() and got.size() == 3, "a revision change sends at once")
-	var dec := DotRadioReplicator.decode(got[0])
+	var dec := GSRadioReplicator.decode(got[0])
 	_check(dec.ok and dec.value["id"] == "ra" and dec.value["title"] == "RA" and not dec.value.has("v"), "decode returns the schedule without the version key")
-	_check(not DotRadioReplicator.decode("nope".to_utf8_buffer()).ok, "garbage is refused")
-	_check(DotRadioReplicator.decode(JSON.stringify({"v": 99, "id": "a"}).to_utf8_buffer()).error.code == DotError.CODE_VERSION, "another version is refused")
-	_check(not DotRadioReplicator.decode(JSON.stringify({"v": 1}).to_utf8_buffer()).ok, "a payload with no id is refused")
-	_check(not DotRadioReplicator.decode(PackedByteArray([123]).duplicate() + ("x".repeat(5000)).to_utf8_buffer()).ok, "an oversized payload is refused")
+	_check(not GSRadioReplicator.decode("nope".to_utf8_buffer()).ok, "garbage is refused")
+	_check(GSRadioReplicator.decode(JSON.stringify({"v": 99, "id": "a"}).to_utf8_buffer()).error.code == GSError.CODE_VERSION, "another version is refused")
+	_check(not GSRadioReplicator.decode(JSON.stringify({"v": 1}).to_utf8_buffer()).ok, "a payload with no id is refused")
+	_check(not GSRadioReplicator.decode(PackedByteArray([123]).duplicate() + ("x".repeat(5000)).to_utf8_buffer()).ok, "an oversized payload is refused")
 	_check(rep.snapshot().size() > 0, "a joining peer gets a snapshot")
-	var c := DotRadioClient.new()
+	var c := GSRadioClient.new()
 	c.bind_input = false
-	c.sink = DotRadioSinkNull.new()
+	c.sink = GSRadioSinkNull.new()
 	c.base_url = "http://127.0.0.1:1"
 	c.poll_schedule = false
 	add_child(c)
@@ -604,11 +604,11 @@ static func _vorbis_tags(comments: Array) -> PackedByteArray:
 
 func _test_tags() -> void:
 	_section("id3 and vorbis tags")
-	var t3 := DotRadioTags.read(_id3(3, [["TIT2", _txt(0, "Song")], ["TPE1", _txt(0, "Band")]]) + _mp3, "mp3")
+	var t3 := GSRadioTags.read(_id3(3, [["TIT2", _txt(0, "Song")], ["TPE1", _txt(0, "Band")]]) + _mp3, "mp3")
 	_check(t3["title"] == "Song" and t3["artist"] == "Band", "ID3v2.3 title and artist")
-	var t4 := DotRadioTags.read(_id3(4, [["TXXX", _txt(0, "skip")], ["TIT2", _txt(3, "Caf\u00e9")], ["TPE1", _txt(3, "Z")]]) + _mp3, "mp3")
+	var t4 := GSRadioTags.read(_id3(4, [["TXXX", _txt(0, "skip")], ["TIT2", _txt(3, "Caf\u00e9")], ["TPE1", _txt(3, "Z")]]) + _mp3, "mp3")
 	_check(t4["title"] == "Caf\u00e9" and t4["artist"] == "Z", "ID3v2.4 with UTF-8, past an unrelated frame")
-	var t16 := DotRadioTags.read(_id3(3, [["TIT2", _txt(1, "Wide")]]) + _mp3, "mp3")
+	var t16 := GSRadioTags.read(_id3(3, [["TIT2", _txt(1, "Wide")]]) + _mp3, "mp3")
 	_check(t16["title"] == "Wide", "UTF-16 with a byte order mark")
 	var v1 := PackedByteArray()
 	v1.resize(128)
@@ -620,17 +620,17 @@ func _test_tags() -> void:
 		v1[3 + i] = "Old".unicode_at(i)
 	for i in "Timer".length():
 		v1[33 + i] = "Timer".unicode_at(i)
-	var t1 := DotRadioTags.read(_mp3 + v1, "mp3")
+	var t1 := GSRadioTags.read(_mp3 + v1, "mp3")
 	_check(t1["title"] == "Old" and t1["artist"] == "Timer", "ID3v1 trailer when there is no v2")
-	_check(DotRadioTags.read(_mp3, "mp3") == {"title": "", "artist": "", "album": ""}, "an untagged file gives empty fields")
+	_check(GSRadioTags.read(_mp3, "mp3") == {"title": "", "artist": "", "album": ""}, "an untagged file gives empty fields")
 	var bad := _id3(3, [["TIT2", _txt(0, "Song")]])
 	bad = bad.slice(0, bad.size() - 3)
-	_check(DotRadioTags.read(bad, "mp3")["title"] == "", "a truncated frame is skipped, not read past the buffer")
-	_check(DotRadioTags.read(PackedByteArray([0x49, 0x44, 0x33, 3, 0, 0, 0x7F, 0x7F, 0x7F, 0x7F]), "mp3")["title"] == "", "a tag claiming a huge size is bounded by the buffer")
-	var ov := DotRadioTags.read(_vorbis_tags(["artist=Ogg Band", "TITLE=Ogg Song"]), "ogg")
+	_check(GSRadioTags.read(bad, "mp3")["title"] == "", "a truncated frame is skipped, not read past the buffer")
+	_check(GSRadioTags.read(PackedByteArray([0x49, 0x44, 0x33, 3, 0, 0, 0x7F, 0x7F, 0x7F, 0x7F]), "mp3")["title"] == "", "a tag claiming a huge size is bounded by the buffer")
+	var ov := GSRadioTags.read(_vorbis_tags(["artist=Ogg Band", "TITLE=Ogg Song"]), "ogg")
 	_check(ov["title"] == "Ogg Song" and ov["artist"] == "Ogg Band", "Vorbis comments, any key case")
-	_check(DotRadioTags.read(_ogg, "ogg") == {"title": "", "artist": "", "album": ""}, "an untagged OGG gives empty fields")
-	var lib := DotRadioLibrary.new()
+	_check(GSRadioTags.read(_ogg, "ogg") == {"title": "", "artist": "", "album": ""}, "an untagged OGG gives empty fields")
+	var lib := GSRadioLibrary.new()
 	lib.root = BASE.path_join("tags")
 	var added := lib.add("file_name.mp3", _id3(3, [["TIT2", _txt(0, "Tagged")], ["TPE1", _txt(0, "Someone")]]) + _mp3)
 	_check(added.ok and added.value["title"] == "Tagged" and added.value["artist"] == "Someone" and added.value["id"] == "file_name", "an upload takes its tags, and the id still comes from the file name")
@@ -682,9 +682,9 @@ func _test_station() -> void:
 	s3.start()
 	s3.request("c", "p1")
 	s3.request("b", "p1")
-	_check(_code(s3.request("a", "p1")) == DotError.CODE_RATE_LIMITED, "a requester is limited to two waiting requests")
-	_check(_code(s3.request("c", "p2")) == DotError.CODE_CONFLICT and _code(s3.request("a", "p2")) == DotError.CODE_CONFLICT, "a queued track or the playing track cannot be requested")
-	_check(_code(s3.request("zzz", "p2")) == DotError.CODE_INVALID and _code(s3.request("b", "")) == DotError.CODE_AUTH, "an unknown track or an anonymous requester is refused")
+	_check(_code(s3.request("a", "p1")) == GSError.CODE_RATE_LIMITED, "a requester is limited to two waiting requests")
+	_check(_code(s3.request("c", "p2")) == GSError.CODE_CONFLICT and _code(s3.request("a", "p2")) == GSError.CODE_CONFLICT, "a queued track or the playing track cannot be requested")
+	_check(_code(s3.request("zzz", "p2")) == GSError.CODE_INVALID and _code(s3.request("b", "")) == GSError.CODE_AUTH, "an unknown track or an anonymous requester is refused")
 	_check(s3.peek_next() == "c", "requests play before the playlist")
 	t2[0] += 10.0
 	s3.update()
@@ -715,7 +715,7 @@ func _test_station() -> void:
 	s6.rate("u1", "a", -1)
 	_check(s6.rating_of("a")["down"] == 2 and s6.rating_of("a")["up"] == 0, "a voter can change their vote")
 	s6.rate("u1", "a", 0)
-	_check(s6.rating_of("a")["down"] == 1 and _code(s6.rate("", "a", 1)) == DotError.CODE_AUTH and _code(s6.rate("u", "zz", 1)) == DotError.CODE_INVALID, "a vote can be withdrawn; anonymous and unknown are refused")
+	_check(s6.rating_of("a")["down"] == 1 and _code(s6.rate("", "a", 1)) == GSError.CODE_AUTH and _code(s6.rate("u", "zz", 1)) == GSError.CODE_INVALID, "a vote can be withdrawn; anonymous and unknown are refused")
 	var ta := [0.0]
 	var sa := _station("sh1", ta)
 	sa.shuffle = true
@@ -734,4 +734,4 @@ func _test_station() -> void:
 	for i in range(1, oa.size()):
 		no_repeat = no_repeat and oa[i] != oa[i - 1]
 	_check(no_repeat, "a reshuffle does not repeat the track that just played")
-	_check(_code(st.set_playlist(["a", "nope"])) == DotError.CODE_INVALID and _code(st.add_to_playlist("a")) == DotError.CODE_CONFLICT, "a playlist can only hold library tracks, once each")
+	_check(_code(st.set_playlist(["a", "nope"])) == GSError.CODE_INVALID and _code(st.add_to_playlist("a")) == GSError.CODE_CONFLICT, "a playlist can only hold library tracks, once each")

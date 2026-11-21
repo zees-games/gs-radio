@@ -1,4 +1,4 @@
-class_name DotRadioApi
+class_name GSRadioApi
 extends RefCounted
 
 ## Maps JSON-able requests onto the library and station; no transport. Listener ops need an actor, admin ops need [member admin_flag].
@@ -9,8 +9,8 @@ const TOKEN_ACTOR := "radio-token"
 const PLAYER_OPS := ["now", "tracks", "playlist", "request", "rate"]
 const ADMIN_OPS := ["upload", "delete", "edit", "reorder", "playlist_add", "playlist_remove", "queue", "dequeue", "clear_queue", "skip", "mode", "start", "stop"]
 
-var library: DotRadioLibrary
-var station: DotRadioStation
+var library: GSRadioLibrary
+var station: GSRadioStation
 ## Flag an actor needs for admin ops.
 var admin_flag := "radio"
 var token_flags := PackedStringArray(["radio"])
@@ -26,9 +26,9 @@ var permit: Callable = Callable()
 var _token := ""
 
 
-func _init(p_library: DotRadioLibrary = null, p_station: DotRadioStation = null) -> void:
-	library = p_library if p_library != null else DotRadioLibrary.new()
-	station = p_station if p_station != null else DotRadioStation.new(library)
+func _init(p_library: GSRadioLibrary = null, p_station: GSRadioStation = null) -> void:
+	library = p_library if p_library != null else GSRadioLibrary.new()
+	station = p_station if p_station != null else GSRadioStation.new(library)
 
 
 func set_admin_token(token: String) -> void:
@@ -36,17 +36,17 @@ func set_admin_token(token: String) -> void:
 
 
 ## Value on success: the actor to pass to [method handle].
-func authenticate(token: String) -> DotResult:
+func authenticate(token: String) -> GSResult:
 	if token.is_empty():
-		return DotResult.fail(DotError.CODE_AUTH, "missing token")
+		return GSResult.fail(GSError.CODE_AUTH, "missing token")
 	if identity.is_valid():
 		var who: Variant = identity.call(token)
 		if who != null:
-			return DotResult.success(who)
-	if not _token.is_empty() and DotHash.constant_time_equal(token.to_utf8_buffer(), _token.to_utf8_buffer()):
-		return DotResult.success(TOKEN_ACTOR)
-	DotLog.warn(CHANNEL, "radio auth refused")
-	return DotResult.fail(DotError.CODE_AUTH, "bad token")
+			return GSResult.success(who)
+	if not _token.is_empty() and GSHash.constant_time_equal(token.to_utf8_buffer(), _token.to_utf8_buffer()):
+		return GSResult.success(TOKEN_ACTOR)
+	GSLog.warn(CHANNEL, "radio auth refused")
+	return GSResult.fail(GSError.CODE_AUTH, "bad token")
 
 
 func is_admin(actor: Variant) -> bool:
@@ -61,23 +61,23 @@ func update() -> bool:
 
 
 ## One request in, one result out; value on success is JSON-able.
-func handle(actor: Variant, req: Dictionary) -> DotResult:
+func handle(actor: Variant, req: Dictionary) -> GSResult:
 	var op := str(req.get("op", ""))
 	if actor == null or (actor is String and actor.is_empty()):
-		return DotResult.fail(DotError.CODE_AUTH, "no actor")
+		return GSResult.fail(GSError.CODE_AUTH, "no actor")
 	if ADMIN_OPS.has(op) and not is_admin(actor):
-		DotLog.warn(CHANNEL, "radio admin op refused", {"op": op, "actor": str(actor)})
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "'%s' needs '%s'" % [op, admin_flag])
+		GSLog.warn(CHANNEL, "radio admin op refused", {"op": op, "actor": str(actor)})
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "'%s' needs '%s'" % [op, admin_flag])
 	if not PLAYER_OPS.has(op) and not ADMIN_OPS.has(op):
-		return DotResult.fail(DotError.CODE_INVALID, "unknown op '%s'" % op)
+		return GSResult.fail(GSError.CODE_INVALID, "unknown op '%s'" % op)
 	if (op == "request" or op == "rate") and not allow_requests and not is_admin(actor):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "requests are switched off")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "requests are switched off")
 	var id := str(req.get("id", ""))
 	var who := _name(actor)
 	match op:
-		"now": return DotResult.success(station.now_playing())
-		"tracks": return DotResult.success(tracks_view())
-		"playlist": return DotResult.success(_view())
+		"now": return GSResult.success(station.now_playing())
+		"tracks": return GSResult.success(tracks_view())
+		"playlist": return GSResult.success(_view())
 		"request": return _reply(station.request(id, who))
 		"rate":
 			if id.is_empty():
@@ -93,26 +93,26 @@ func handle(actor: Variant, req: Dictionary) -> DotResult:
 		"dequeue": return _reply(station.dequeue(int(req.get("index", -1))))
 		"clear_queue":
 			station.clear_queue()
-			return DotResult.success(_view())
+			return GSResult.success(_view())
 		"skip":
 			station.skip()
-			return DotResult.success(station.now_playing())
+			return GSResult.success(station.now_playing())
 		"mode":
 			station.set_modes(bool(req.get("shuffle", station.shuffle)), bool(req.get("loop", station.loop)))
-			return DotResult.success(_view())
+			return GSResult.success(_view())
 		"start":
 			station.start()
-			return DotResult.success(station.now_playing())
+			return GSResult.success(station.now_playing())
 		"stop":
 			station.stop()
-			return DotResult.success(station.now_playing())
-	return DotResult.fail(DotError.CODE_INTERNAL, "unhandled op '%s'" % op)
+			return GSResult.success(station.now_playing())
+	return GSResult.fail(GSError.CODE_INTERNAL, "unhandled op '%s'" % op)
 
 
 ## Raw-bytes upload for transports that carry the body as is (HTTP PUT); the caller has already checked admin.
-func upload_bytes(actor: Variant, file_name: String, bytes: PackedByteArray, meta: Dictionary = {}) -> DotResult:
+func upload_bytes(actor: Variant, file_name: String, bytes: PackedByteArray, meta: Dictionary = {}) -> GSResult:
 	if not is_admin(actor):
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "'upload' needs '%s'" % admin_flag)
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "'upload' needs '%s'" % admin_flag)
 	var res := library.add(file_name, bytes, meta, _name(actor))
 	if res.ok and auto_playlist and bool(meta.get("playlist", true)):
 		station.add_to_playlist(res.value["id"])
@@ -126,22 +126,22 @@ func handle_json(token: String, text: String) -> String:
 		return JSON.stringify(to_reply(auth))
 	var parsed: Variant = JSON.parse_string(text)
 	if not (parsed is Dictionary):
-		return JSON.stringify(to_reply(DotResult.fail(DotError.CODE_INVALID, "body must be a JSON object")))
+		return JSON.stringify(to_reply(GSResult.fail(GSError.CODE_INVALID, "body must be a JSON object")))
 	return JSON.stringify(to_reply(handle(auth.value, parsed)))
 
 
 ## {ok: true, value} or {ok: false, error: {code, message}}.
-static func to_reply(res: DotResult) -> Dictionary:
+static func to_reply(res: GSResult) -> Dictionary:
 	if res.ok:
 		return {"ok": true, "value": res.value}
 	return {"ok": false, "error": {"code": res.error.code, "message": res.error.message}}
 
 
-func _upload(actor: Variant, req: Dictionary) -> DotResult:
+func _upload(actor: Variant, req: Dictionary) -> GSResult:
 	var b64 := str(req.get("data", ""))
 	# Base64 inflates by a third; refuse before decoding what could never fit.
 	if b64.length() > library.max_track_bytes * 4 / 3 + 8:
-		return DotResult.fail(DotError.CODE_INVALID, "track is over the %d byte limit" % library.max_track_bytes)
+		return GSResult.fail(GSError.CODE_INVALID, "track is over the %d byte limit" % library.max_track_bytes)
 	return upload_bytes(actor, str(req.get("name", "")), Marshalls.base64_to_raw(b64), req)
 
 
@@ -159,8 +159,8 @@ func _view() -> Dictionary:
 	return {"running": station.running, "playlist": station.playlist, "queue": station.queue, "shuffle": station.shuffle, "loop": station.loop, "current": station.current_id()}
 
 
-func _reply(res: DotResult) -> DotResult:
-	return res if not res.ok else DotResult.success(_view())
+func _reply(res: GSResult) -> GSResult:
+	return res if not res.ok else GSResult.success(_view())
 
 
 static func _ids(v: Variant) -> Array:

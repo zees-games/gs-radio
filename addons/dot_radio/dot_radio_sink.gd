@@ -1,7 +1,7 @@
-class_name DotRadioSink
+class_name GSRadioSink
 extends RefCounted
 
-## What [DotRadioClient] plays through. Any object with these methods works; this is the documented shape and a silent default.
+## What [GSRadioClient] plays through. Any object with these methods works; this is the documented shape and a silent default.
 
 func play(_stream: AudioStream, _from_sec: float) -> void:
 	pass

@@ -1,4 +1,4 @@
-class_name DotRadioStation
+class_name GSRadioStation
 extends RefCounted
 
 ## The one shared station: a playlist, a request queue and a schedule (current track plus the instant it starts), advanced by [method update].
@@ -10,7 +10,7 @@ signal rated(id: String, up: int, down: int)
 
 const CHANNEL := "radio"
 
-var library: DotRadioLibrary
+var library: GSRadioLibrary
 var shuffle := false
 var loop := true
 ## Silence between tracks; also the head start clients get to download the next one.
@@ -38,8 +38,8 @@ var _ratings: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 
 
-func _init(p_library: DotRadioLibrary = null, seed_value: int = 0) -> void:
-	library = p_library if p_library != null else DotRadioLibrary.new()
+func _init(p_library: GSRadioLibrary = null, seed_value: int = 0) -> void:
+	library = p_library if p_library != null else GSRadioLibrary.new()
 	if seed_value != 0:
 		_rng.seed = seed_value
 	else:
@@ -127,72 +127,72 @@ func peek_next() -> String:
 	return _planned()
 
 
-func set_playlist(ids: Array) -> DotResult:
+func set_playlist(ids: Array) -> GSResult:
 	var next: Array[String] = []
 	for id in ids:
 		if not library.has(str(id)):
-			return DotResult.fail(DotError.CODE_INVALID, "no track '%s'" % str(id))
+			return GSResult.fail(GSError.CODE_INVALID, "no track '%s'" % str(id))
 		next.append(str(id))
 	playlist = next
 	_playlist_edited()
-	return DotResult.success(playlist.size())
+	return GSResult.success(playlist.size())
 
 
-func add_to_playlist(id: String) -> DotResult:
+func add_to_playlist(id: String) -> GSResult:
 	if not library.has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "no track '%s'" % id)
+		return GSResult.fail(GSError.CODE_INVALID, "no track '%s'" % id)
 	if playlist.has(id):
-		return DotResult.fail(DotError.CODE_CONFLICT, "'%s' is already in the playlist" % id)
+		return GSResult.fail(GSError.CODE_CONFLICT, "'%s' is already in the playlist" % id)
 	playlist.append(id)
 	_playlist_edited()
-	return DotResult.success(playlist.size())
+	return GSResult.success(playlist.size())
 
 
-func remove_from_playlist(id: String) -> DotResult:
+func remove_from_playlist(id: String) -> GSResult:
 	if not playlist.has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "'%s' is not in the playlist" % id)
+		return GSResult.fail(GSError.CODE_INVALID, "'%s' is not in the playlist" % id)
 	playlist.erase(id)
 	_playlist_edited()
-	return DotResult.success(playlist.size())
+	return GSResult.success(playlist.size())
 
 
 ## A listener's request, with the per-requester and total limits; admins use [method enqueue].
-func request(id: String, requester: String) -> DotResult:
+func request(id: String, requester: String) -> GSResult:
 	if requester.is_empty():
-		return DotResult.fail(DotError.CODE_AUTH, "requests need a player")
+		return GSResult.fail(GSError.CODE_AUTH, "requests need a player")
 	var mine := 0
 	for q in queue:
 		mine += 1 if q["by"] == requester else 0
 	if mine >= max_per_requester:
-		return DotResult.fail(DotError.CODE_RATE_LIMITED, "you already have %d requests waiting" % mine)
+		return GSResult.fail(GSError.CODE_RATE_LIMITED, "you already have %d requests waiting" % mine)
 	return enqueue(id, requester)
 
 
-func enqueue(id: String, by: String = "") -> DotResult:
+func enqueue(id: String, by: String = "") -> GSResult:
 	if not library.has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "no track '%s'" % id)
+		return GSResult.fail(GSError.CODE_INVALID, "no track '%s'" % id)
 	if queue.size() >= max_queue:
-		return DotResult.fail(DotError.CODE_QUOTA, "the request queue is full")
+		return GSResult.fail(GSError.CODE_QUOTA, "the request queue is full")
 	if id == _current:
-		return DotResult.fail(DotError.CODE_CONFLICT, "'%s' is playing now" % id)
+		return GSResult.fail(GSError.CODE_CONFLICT, "'%s' is playing now" % id)
 	for q in queue:
 		if q["id"] == id:
-			return DotResult.fail(DotError.CODE_CONFLICT, "'%s' is already queued" % id)
+			return GSResult.fail(GSError.CODE_CONFLICT, "'%s' is already queued" % id)
 	queue.append({"id": id, "by": by})
 	_bump()
 	queue_changed.emit()
 	_persist()
-	return DotResult.success(queue.size())
+	return GSResult.success(queue.size())
 
 
-func dequeue(index: int) -> DotResult:
+func dequeue(index: int) -> GSResult:
 	if index < 0 or index >= queue.size():
-		return DotResult.fail(DotError.CODE_INVALID, "no queue entry %d" % index)
+		return GSResult.fail(GSError.CODE_INVALID, "no queue entry %d" % index)
 	queue.remove_at(index)
 	_bump()
 	queue_changed.emit()
 	_persist()
-	return DotResult.success(queue.size())
+	return GSResult.success(queue.size())
 
 
 func clear_queue() -> void:
@@ -203,11 +203,11 @@ func clear_queue() -> void:
 
 
 ## Records one voter's rating of a track (+1, -1, or 0 to withdraw); a voter has one vote per track.
-func rate(voter: String, id: String, value: int) -> DotResult:
+func rate(voter: String, id: String, value: int) -> GSResult:
 	if voter.is_empty():
-		return DotResult.fail(DotError.CODE_AUTH, "rating needs a player")
+		return GSResult.fail(GSError.CODE_AUTH, "rating needs a player")
 	if not library.has(id):
-		return DotResult.fail(DotError.CODE_INVALID, "no track '%s'" % id)
+		return GSResult.fail(GSError.CODE_INVALID, "no track '%s'" % id)
 	var votes: Dictionary = _ratings.get(id, {})
 	if value == 0:
 		votes.erase(voter)
@@ -217,7 +217,7 @@ func rate(voter: String, id: String, value: int) -> DotResult:
 	var r := rating_of(id)
 	rated.emit(id, r["up"], r["down"])
 	_persist()
-	return DotResult.success(r)
+	return GSResult.success(r)
 
 
 func rating_of(id: String) -> Dictionary:
@@ -238,28 +238,28 @@ func set_modes(p_shuffle: bool, p_loop: bool) -> void:
 	_persist()
 
 
-func save_state() -> DotResult:
+func save_state() -> GSResult:
 	if state_path.is_empty():
-		return DotResult.success()
-	var made := DotPaths.ensure_parent_dir(state_path)
+		return GSResult.success()
+	var made := GSPaths.ensure_parent_dir(state_path)
 	if not made.ok:
 		return made
 	var f := FileAccess.open(state_path, FileAccess.WRITE)
 	if f == null:
-		return DotResult.fail(DotError.CODE_IO, "cannot write the station state", error_string(FileAccess.get_open_error()))
+		return GSResult.fail(GSError.CODE_IO, "cannot write the station state", error_string(FileAccess.get_open_error()))
 	f.store_string(JSON.stringify({"version": 1, "playlist": playlist, "queue": queue, "shuffle": shuffle, "loop": loop, "ratings": _ratings}))
 	f.close()
-	DotWeb.sync_filesystem()
-	return DotResult.success()
+	GSWeb.sync_filesystem()
+	return GSResult.success()
 
 
 ## Restores playlist, queue, modes and ratings; ids no longer in the library are dropped.
-func load_state() -> DotResult:
+func load_state() -> GSResult:
 	if state_path.is_empty() or not FileAccess.file_exists(state_path):
-		return DotResult.success()
-	var doc := DotPaths.read_json(state_path)
+		return GSResult.success()
+	var doc := GSPaths.read_json(state_path)
 	if not doc.ok or not (doc.value is Dictionary):
-		return DotResult.fail(DotError.CODE_PARSE, "station state is not readable", state_path)
+		return GSResult.fail(GSError.CODE_PARSE, "station state is not readable", state_path)
 	var d: Dictionary = doc.value
 	playlist.clear()
 	for id in d.get("playlist", []):
@@ -276,7 +276,7 @@ func load_state() -> DotResult:
 	_bag.clear()
 	_bag_built = false
 	_bump()
-	return DotResult.success()
+	return GSResult.success()
 
 
 func describe() -> Dictionary:
@@ -294,7 +294,7 @@ func _bump() -> void:
 func _persist() -> void:
 	var res := save_state()
 	if not res.ok:
-		DotLog.warn(CHANNEL, "station state not saved", {"error": res.error.message})
+		GSLog.warn(CHANNEL, "station state not saved", {"error": res.error.message})
 
 
 func _playlist_edited() -> void:
@@ -348,9 +348,9 @@ func _advance(start_at: float) -> void:
 	_bump()
 	if id.is_empty():
 		running = false
-		DotLog.info(CHANNEL, "station stopped: nothing left to play")
+		GSLog.info(CHANNEL, "station stopped: nothing left to play")
 	else:
-		DotLog.debug(CHANNEL, "track changed", {"id": id, "starts_in": start_at - now()})
+		GSLog.debug(CHANNEL, "track changed", {"id": id, "starts_in": start_at - now()})
 	track_changed.emit(now_playing())
 
 
