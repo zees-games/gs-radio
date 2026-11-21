@@ -9,7 +9,7 @@ const CHECKS := 189
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.FATAL)
-	_line("dot-radio self-test")
+	_line("gs-radio self-test")
 	_mp3 = FileAccess.get_file_as_bytes(FIX + "tone_a.mp3.fixture")
 	_ogg = FileAccess.get_file_as_bytes(FIX + "tone_b.ogg.fixture")
 	_clean()

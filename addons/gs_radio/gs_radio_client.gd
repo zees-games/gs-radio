@@ -149,7 +149,7 @@ func apply_now(now: Dictionary, latency: float = 0.0) -> void:
 	now_updated.emit(now)
 
 
-## Takes a schedule pushed by [GSRadioReplicator] (bytes from the host's own transport, e.g. a dot-net message). A bad payload is refused and the last schedule stays. Set `poll_schedule = false` so the client stops polling `/now`; audio still downloads from `base_url`.
+## Takes a schedule pushed by [GSRadioReplicator] (bytes from the host's own transport, e.g. a gs-net message). A bad payload is refused and the last schedule stays. Set `poll_schedule = false` so the client stops polling `/now`; audio still downloads from `base_url`.
 func apply_wire(payload: PackedByteArray, latency: float = 0.0) -> GSResult:
 	var res := GSRadioReplicator.decode(payload)
 	if not res.ok:

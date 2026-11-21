@@ -1,4 +1,4 @@
-![Radio banner](https://raw.githubusercontent.com/zees-games/dot-radio/main/docs/banner.png)
+![Radio banner](https://raw.githubusercontent.com/zees-games/gs-radio/main/docs/banner.png)
 
 An in-game radio for a game server. The operator uploads MP3 and OGG tracks through a small admin page (or the JSON API). The server plays them as one station, and every player who tunes in hears the same track at the same point. Design notes: [docs/design.md](docs/design.md).
 
@@ -7,7 +7,7 @@ An in-game radio for a game server. The operator uploads MP3 and OGG tracks thro
 ## Install
 
 1. Get [Godot 4.7](https://godotengine.org/download).
-2. Either use [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons, or copy `addons/dot_radio/` and [dot-core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-radio in *Project > Project Settings > Plugins*.
+2. Either use [gs-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons, or copy `addons/gs_radio/` and [gs-core](https://github.com/gamespice-platform/core)'s `addons/gs_core/` into your project and enable gs-radio in *Project > Project Settings > Plugins*.
 
 ## Server
 
@@ -78,10 +78,10 @@ Web builds work: files are fetched with `HTTPRequest`, and the public routes all
 
 ## Testing
 
-Link dot-core into `addons/`, import the project once, then run `examples/radio_selftest.tscn` headless with Godot. The two files in `examples/fixtures/` are sine tones generated for the tests.
+Link gs-core into `addons/`, import the project once, then run `examples/radio_selftest.tscn` headless with Godot. The two files in `examples/fixtures/` are sine tones generated for the tests.
 
 ## Status and licence
 
-Part of the [**GameSpice**](https://gamespice.net) platform of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/zees-games/dot-radio/issues) when you hit one.
+Part of the [**GameSpice**](https://gamespice.net) platform of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/zees-games/gs-radio/issues) when you hit one.
 
 MIT licence, see [LICENSE](LICENSE). The only closed part of the [**GameSpice**](https://gamespice.net) platform is the web back end; you can use your own instead of GameSpice's.

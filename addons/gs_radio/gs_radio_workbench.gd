@@ -1,7 +1,7 @@
 class_name GSRadioWorkbench
 extends RefCounted
 
-## Puts the radio admin page in a dot-workbench. Duck-typed: dot-radio does not depend on dot-workbench, so [param workbench] is anything with a `server` ([GSHttpServer]) and `register_page(id, title, html, flag)` (a `GSWorkbenchHttp`).
+## Puts the radio admin page in a gs-workbench. Duck-typed: gs-radio does not depend on gs-workbench, so [param workbench] is anything with a `server` ([GSHttpServer]) and `register_page(id, title, html, flag)` (a `GSWorkbenchHttp`).
 ##
 ## The radio routes are mounted on the workbench's own server under [param prefix] (so the page is same-origin and the workbench's CSP `connect-src 'self'` holds), and the page is registered as `/pages/radio`, listed on the workbench index for tokens holding [constant FLAG]. The radio keeps its own token or identity (`GSRadioApi.identity`, which `GSAdminIdentity` fits); the workbench token does not open it.
 

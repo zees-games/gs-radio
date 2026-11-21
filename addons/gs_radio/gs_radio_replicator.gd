@@ -1,7 +1,7 @@
 class_name GSRadioReplicator
 extends RefCounted
 
-## Pushes the station's schedule to clients over any transport, dot-net included, instead of each client polling `GET /now`. Transport-agnostic on purpose: dot-radio does not depend on dot-net, so the host wraps [method encode]'s bytes in one `GSNetMessage` (TO_CLIENT, RELIABLE) whose body is a byte string, and hands the received bytes to [method GSRadioClient.apply_wire]. Audio still comes over HTTP; only the schedule moves.
+## Pushes the station's schedule to clients over any transport, gs-net included, instead of each client polling `GET /now`. Transport-agnostic on purpose: gs-radio does not depend on gs-net, so the host wraps [method encode]'s bytes in one `GSNetMessage` (TO_CLIENT, RELIABLE) whose body is a byte string, and hands the received bytes to [method GSRadioClient.apply_wire]. Audio still comes over HTTP; only the schedule moves.
 ##
 ## Call [method update] from the server's tick. It sends when the station's `rev` changed (track change, queue, playlist, rating) and otherwise every `heartbeat_sec`, so a client that missed one still converges and positions stay anchored.
 

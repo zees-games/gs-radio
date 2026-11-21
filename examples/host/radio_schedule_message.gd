@@ -1,7 +1,7 @@
 class_name RadioScheduleMessage
 extends GSNetMessage
 
-## The host-side wrapper for [GSRadioReplicator]: one reliable server-to-client dot-net message whose body is the replicator's payload. dot-radio itself has no dot-net dependency, so this lives with the host (here, as the reference one); copy it into a game.
+## The host-side wrapper for [GSRadioReplicator]: one reliable server-to-client gs-net message whose body is the replicator's payload. gs-radio itself has no gs-net dependency, so this lives with the host (here, as the reference one); copy it into a game.
 
 const TYPE := &"radio.schedule"
 

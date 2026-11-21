@@ -6,7 +6,7 @@ extends RefCounted
 ## [member base] prefixes every route so the radio can share a server with other pages.
 
 const CHANNEL := "radio"
-const PAGE := "res://addons/dot_radio/web/index.html"
+const PAGE := "res://addons/gs_radio/web/index.html"
 const CSP := "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
 
 var api: GSRadioApi

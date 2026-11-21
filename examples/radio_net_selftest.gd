@@ -1,6 +1,6 @@
 extends Node
 
-## End to end: a real server [GSNetManager] pushes the station's schedule to a real client manager through [RadioNetHost] and [RadioScheduleMessage], and the [GSRadioClient] follows it. Needs dot-net (and dot-profile) linked beside dot-core.
+## End to end: a real server [GSNetManager] pushes the station's schedule to a real client manager through [RadioNetHost] and [RadioScheduleMessage], and the [GSRadioClient] follows it. Needs gs-net (and gs-profile) linked beside gs-core.
 ## Run: godot --headless --path . res://examples/radio_net_selftest.tscn
 
 const SECTIONS := 1
@@ -14,7 +14,7 @@ var _section_count := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.FATAL)
-	_line("dot-radio dot-net self-test")
+	_line("gs-radio gs-net self-test")
 	_test_end_to_end()
 	_line("")
 	_line("%d sections, %d passed, %d failed" % [_section_count, _passed, _failed])
@@ -38,7 +38,7 @@ func _manager(server: bool, scope: StringName, peer: int) -> GSNetManager:
 
 
 func _test_end_to_end() -> void:
-	_section("schedule over dot-net")
+	_section("schedule over gs-net")
 	var t := [100.0]
 	var mp3 := FileAccess.get_file_as_bytes("res://examples/fixtures/tone_a.mp3.fixture")
 	var lib := GSRadioLibrary.new()

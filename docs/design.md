@@ -1,4 +1,4 @@
-# dot-radio design
+# gs-radio design
 
 ## What it is
 
@@ -21,13 +21,13 @@ The server sends no audio frames. It serves files at `GET /track/<id>` (public, 
 ## Layers
 
 1. `GSRadioCodec`, `GSRadioLibrary`, `GSRadioStation`: no transport, no nodes, testable headless with a fake clock and a fake length probe.
-2. `GSRadioApi`: a request dictionary in, a `GSResult` out. Listener ops need any actor; admin ops need the `radio` flag. Actors come from the admin token or from the `identity` hook; `permit` is the host's check. dot-core's `GSAdminIdentity` (flags `["radio"]`) is the shared gate for both hooks, the same one dot-workbench's `GSWorkbenchIdentity` derives from.
-3. `GSRadioHttp`: routes on dot-core's `GSHttpServer`. Off by default, loopback by default, token from a file only, bad tokens throttled with `GSRateLimiter`. Upload is a raw-body `PUT`: `GSHttpServer` already reads bodies up to `max_body_bytes` (1 MiB by default; the radio raises it to fit a track), and a multipart parser would be a second HTTP implementation. `Expect: 100-continue` and `Range` are not supported by `GSHttpServer`. `read_timeout_sec` is raised to `upload_timeout_sec` for slow uplinks, which also lengthens the time a stalled connection holds a slot.
+2. `GSRadioApi`: a request dictionary in, a `GSResult` out. Listener ops need any actor; admin ops need the `radio` flag. Actors come from the admin token or from the `identity` hook; `permit` is the host's check. gs-core's `GSAdminIdentity` (flags `["radio"]`) is the shared gate for both hooks, the same one gs-workbench's `GSWorkbenchIdentity` derives from.
+3. `GSRadioHttp`: routes on gs-core's `GSHttpServer`. Off by default, loopback by default, token from a file only, bad tokens throttled with `GSRateLimiter`. Upload is a raw-body `PUT`: `GSHttpServer` already reads bodies up to `max_body_bytes` (1 MiB by default; the radio raises it to fit a track), and a multipart parser would be a second HTTP implementation. `Expect: 100-continue` and `Range` are not supported by `GSHttpServer`. `read_timeout_sec` is raised to `upload_timeout_sec` for slow uplinks, which also lengthens the time a stalled connection holds a slot.
 4. `web/index.html`: drag and drop upload with progress, library, playlist, queue, now playing, skip, delete.
 5. `GSRadioClient` over a duck-typed sink: `GSRadioSinkNull` for tests, `GSRadioSinkGodot` for an `AudioStreamPlayer`. `tick()` compares the sink position with the schedule and re-seeks beyond `drift_threshold_sec`. `tune_in()` is the only way playback starts and is reached from an input event, the user gesture a browser needs to unlock audio.
-6. `GSRadioCommands`: `!radio`, `!song`, `!request`, `!rate`, with no dependency on dot-console or dot-chat.
+6. `GSRadioCommands`: `!radio`, `!song`, `!request`, `!rate`, with no dependency on gs-console or gs-chat.
 7. `GSRadioHud`: a code-built Control (tune button, artist - title, position bar, next line, volume, mute) bound to a client with `bind()`. Placement and theme are the game's.
-8. `GSRadioReplicator` (server) and `GSRadioClient.apply_wire` (client): push the schedule over the host's transport instead of polling `/now`. Transport-agnostic because dot-radio does not depend on dot-net: the host wraps the bytes in one reliable TO_CLIENT `GSNetMessage` with a byte-string body and sets `client.poll_schedule = false`. `examples/host/` has the reference wrapper (`RadioScheduleMessage`, `RadioNetHost`) and `radio_net_selftest` runs it between two real `GSNetManager`s. Audio still downloads over HTTP.
+8. `GSRadioReplicator` (server) and `GSRadioClient.apply_wire` (client): push the schedule over the host's transport instead of polling `/now`. Transport-agnostic because gs-radio does not depend on gs-net: the host wraps the bytes in one reliable TO_CLIENT `GSNetMessage` with a byte-string body and sets `client.poll_schedule = false`. `examples/host/` has the reference wrapper (`RadioScheduleMessage`, `RadioNetHost`) and `radio_net_selftest` runs it between two real `GSNetManager`s. Audio still downloads over HTTP.
 9. `GSRadioTags`: title and artist from ID3v2.2-2.4, ID3v1, Vorbis and Opus comments, bounded and best effort; `GSRadioLibrary.add` uses them when the admin typed nothing (the id still comes from the typed title or file name). Album is read too (`TALB`/`TAL`, Vorbis `ALBUM`), and `GSRadioTags.cover` takes an ID3v2 `APIC`/`PIC` image if its bytes are PNG or JPEG and at most 512 KiB; the library stores it under `covers/` and serves it at `GET /cover/<id>`. OGG covers (base64 across page boundaries) and ReplayGain are not read.
 
 ## Validation
@@ -36,11 +36,11 @@ A file is accepted when its magic bytes say MP3 (`ID3` or an MPEG frame sync) or
 
 ## Workbench
 
-`GSRadioWorkbench.register(workbench, radio_http, "/radio")` mounts the radio routes on the workbench's own server and registers the admin page in its page registry (`/pages/radio`, listed for tokens with the `radio` flag). Duck-typed: dot-radio does not depend on dot-workbench. The page is the same one with a `radio-root` meta that points its relative URLs at the mount. The radio keeps its own token or identity (`GSAdminIdentity` fits the hooks); the workbench token does not open it.
+`GSRadioWorkbench.register(workbench, radio_http, "/radio")` mounts the radio routes on the workbench's own server and registers the admin page in its page registry (`/pages/radio`, listed for tokens with the `radio` flag). Duck-typed: gs-radio does not depend on gs-workbench. The page is the same one with a `radio-root` meta that points its relative URLs at the mount. The radio keeps its own token or identity (`GSAdminIdentity` fits the hooks); the workbench token does not open it.
 
 ## Not built
 
 - Player requests and ratings over HTTP; they go through the game's server-side commands into `GSRadioApi`.
 - HTTP `Range`, resumable or chunked upload, `Expect: 100-continue`.
 - Crossfade and gain normalisation.
-- Persisting volume and mute (belongs in dot-settings).
+- Persisting volume and mute (belongs in gs-settings).

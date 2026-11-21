@@ -18,7 +18,7 @@ var token_flags := PackedStringArray(["radio"])
 var allow_requests := true
 ## Append each upload to the playlist.
 var auto_playlist := true
-## Optional Callable(token) -> actor or null, for dot-auth style identities (duck-typed).
+## Optional Callable(token) -> actor or null, for gs-auth style identities (duck-typed).
 var identity: Callable = Callable()
 ## The host's Callable(actor, flag) -> bool; the admin token is judged by [member token_flags] instead.
 var permit: Callable = Callable()

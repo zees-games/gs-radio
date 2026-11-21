@@ -9,7 +9,7 @@ const COVER_CHECKS := 21
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.FATAL)
-	_line("dot-radio cover self-test")
+	_line("gs-radio cover self-test")
 	_mp3 = FileAccess.get_file_as_bytes(FIX + "tone_a.mp3.fixture")
 	_ogg = FileAccess.get_file_as_bytes(FIX + "tone_b.ogg.fixture")
 	_clean()

@@ -1,7 +1,7 @@
 class_name GSRadioCommands
 extends RefCounted
 
-## Chat-style commands (!radio, !song, !request, !rate) over a client and a server call, with no dependency on dot-console or dot-chat.
+## Chat-style commands (!radio, !song, !request, !rate) over a client and a server call, with no dependency on gs-console or gs-chat.
 ## [method execute] takes one line and returns the reply. [method register] fits any registry with
 ## `add_command(name, help, fn)` or `register_command(name, fn)`.
 

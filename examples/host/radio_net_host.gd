@@ -1,7 +1,7 @@
 class_name RadioNetHost
 extends RefCounted
 
-## Wires dot-radio's schedule replication onto a [GSNetManager]: the server side broadcasts [RadioScheduleMessage] from its tick and greets each new peer, the client side hands received payloads to [method GSRadioClient.apply_wire]. Register before the manager starts (it seals the message table). Audio still downloads over HTTP.
+## Wires gs-radio's schedule replication onto a [GSNetManager]: the server side broadcasts [RadioScheduleMessage] from its tick and greets each new peer, the client side hands received payloads to [method GSRadioClient.apply_wire]. Register before the manager starts (it seals the message table). Audio still downloads over HTTP.
 
 var replicator: GSRadioReplicator
 var client: GSRadioClient
