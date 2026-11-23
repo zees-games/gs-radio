@@ -23,7 +23,7 @@ radio:
   enabled: true
   bind: 127.0.0.1
   port: 8791
-  token_file: /etc/dot/radio.token
+  token_file: /etc/gs/radio.token
   max_track_mb: 20
   upload_timeout_sec: 120
 ```

@@ -97,7 +97,7 @@ func _test_api() -> void:
 	_check(_code(plain.authenticate("anything")) == GSError.CODE_AUTH, "no configured token refuses everything")
 	api.identity = func(tk: String) -> Variant: return "carol" if tk == "carol-session" else null
 	_check(api.authenticate("carol-session").value == "carol" and not api.is_admin("carol"), "an identity hook yields an actor, who is not admin unless permit says so")
-	# the shared dot-core gate (GSAdminIdentity) with the radio flag
+	# the shared gs-core gate (GSAdminIdentity) with the radio flag
 	var gate := GSAdminIdentity.new()
 	gate.channel = "radio"
 	gate.flags = PackedStringArray(["radio"])
