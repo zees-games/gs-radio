@@ -80,8 +80,14 @@ Web builds work: files are fetched with `HTTPRequest`, and the public routes all
 
 Link gs-core into `addons/`, import the project once, then run `examples/radio_selftest.tscn` headless with Godot. The two files in `examples/fixtures/` are sine tones generated for the tests.
 
+## Used by
+
+No shipped game uses it yet; the example scenes (`radio_selftest` and its siblings) show it.
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
+
 ## Status and licence
 
-Part of the [**GameSpice**](https://gamespice.net) platform of Godot addons. Written with Claude Code and maintained by `gamemann`. Every addon has headless tests, but little of this has been played by real users yet, so expect rough edges and please [open an issue](https://github.com/zees-games/gs-radio/issues) when you hit one.
+A GameSpice addon under the MIT licence, built with Claude Code. The headless scenes `radio_selftest`, `radio_net_selftest` and `radio_cover_selftest` cover it. [Zee's Games](https://zeesgames.com) are built on the GameSpice addons and run on live servers, though none of them ships this one yet. Report bugs on the [issue tracker](https://github.com/zees-games/gs-radio/issues).
 
 MIT licence, see [LICENSE](LICENSE). The only closed part of the [**GameSpice**](https://gamespice.net) platform is the web back end; you can use your own instead of GameSpice's.
